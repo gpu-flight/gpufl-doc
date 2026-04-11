@@ -1,0 +1,19 @@
+release:
+  label: Release
+  permalink: /release
+  description: Release announcements
+
+amd:
+  label: AMD
+  permalink: /amd
+  description: AMD ROCm related updates
+
+nvidia:
+  label: NVIDIA
+  permalink: /nvidia
+  description: NVIDIA CUDA related updates
+
+feature:
+  label: Feature
+  permalink: /feature
+  description: New feature announcements
