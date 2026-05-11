@@ -8,9 +8,9 @@ GPUFlight supports NVIDIA GPUs via CUDA, providing kernel interception through C
 
 ## Prerequisites
 
-- CUDA Toolkit 11.x or later (including CUPTI)
+- CUDA Toolkit 13.x or later (including CUPTI)
 - NVML (ships with the NVIDIA driver)
-- CMake 3.20+
+- CMake 3.31+
 - C++17 compiler
 
 ## Build Setup

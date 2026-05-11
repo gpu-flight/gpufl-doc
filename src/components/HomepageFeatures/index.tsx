@@ -11,29 +11,29 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Multi-Vendor GPU Monitoring',
+    title: 'Zero-Code GPU Profiling',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Always-on monitoring for NVIDIA CUDA and AMD ROCm with minimal overhead. Lock-free ring buffers and background collection keep your hot path fast.
+        Add an environment variable. That's it. Full CUDA kernel profiling, SASS disassembly, and GPU metrics with no code changes. Works with any framework — PyTorch, TensorFlow, JAX, or custom CUDA.
       </>
     ),
   },
   {
-    title: 'Scoping & Reporting',
+    title: 'Cloud Dashboard',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Group kernels into application phases with GFL_SCOPE. Generate performance reports with kernel hotspots, occupancy analysis, and system metrics.
+        Real-time GPU monitoring and historical analysis from any browser. Kernel timeline, occupancy analysis, stall reasons, and SASS instruction viewer — all in a web dashboard.
       </>
     ),
   },
   {
-    title: 'Profiling & ISA Analysis',
+    title: 'Nsight Depth, Always On',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        PC sampling, SASS/ISA instruction metrics, and automatic GPU assembly disassembly. Python tools for analysis, dashboards, and timeline visualization.
+        PC sampling, SASS/ISA instruction-level analysis, and occupancy breakdown — the same depth as NVIDIA Nsight, but with minimal overhead for continuous production use. NVIDIA CUDA and AMD ROCm supported.
       </>
     ),
   },

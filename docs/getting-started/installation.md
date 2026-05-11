@@ -7,12 +7,12 @@ GPUFlight supports both **NVIDIA CUDA** and **AMD ROCm** backends. You need the 
 The recommended way to integrate `gpufl` into your C++ project is via CMake's `FetchContent`.
 
 ### NVIDIA Prerequisites
-- CMake 3.20 or higher
-- CUDA Toolkit (including CUPTI)
+- CMake 3.31 or higher
+- CUDA Toolkit 13.x or later (including CUPTI)
 - A C++17 compatible compiler
 
 ### AMD Prerequisites
-- CMake 3.28 or higher
+- CMake 3.31 or higher
 - ROCm 6.x with HIP runtime
 - ROCm SMI library
 - rocprofiler-sdk

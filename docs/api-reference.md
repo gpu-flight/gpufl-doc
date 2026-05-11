@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 # API Reference
@@ -18,16 +18,39 @@ sidebar_position: 4
 namespace gpufl {
 
 struct InitOptions {
-    std::string app_name = "gpufl";
-    std::string log_path = "";               // defaults to "<app_name>.log"
-    int system_sample_rate_ms = 0;           // 0 = disabled
-    int kernel_sample_rate_ms = 0;
-    BackendKind backend = BackendKind::Auto; // Auto, Nvidia, Amd, None
-    bool sampling_auto_start = false;
-    bool enable_kernel_details = false;
-    bool enable_debug_output = false;
-    bool enable_stack_trace = true;
-    ProfilingEngine profiling_engine = ProfilingEngine::PcSampling;
+    // ── Identity ────────────────────────────────────────────────────
+    std::string  app_name = "gpufl";
+    std::string  log_path = "";                  // defaults to "<app_name>.log"
+
+    // ── Cloud upload ────────────────────────────────────────────────
+    std::string  backend_url = "";               // e.g. "https://api.gpuflight.com" (host only)
+    std::string  api_key     = "";               // sent as `Authorization: Bearer <key>`
+    std::string  api_path    = "";               // empty → "/api/v1"; override for proxy mounts
+    std::string  config_name = "";               // remote config to fetch on init
+    bool         remote_upload = false;          // attach HttpLogSink for live in-process upload
+
+    // ── What to capture ─────────────────────────────────────────────
+    bool         enable_kernel_details        = false;
+    bool         enable_stack_trace           = false;  // capture CPU stacks on launch + sync events
+    bool         enable_source_collection     = true;   // collect source for SASS correlation
+    bool         enable_external_correlation  = true;   // honor framework-pushed external IDs (PyTorch/JAX/XLA)
+    bool         enable_synchronization       = true;   // CUDA sync events (host-blocked time)
+    bool         enable_memory_tracking       = false;  // cudaMalloc / cudaFree timing — opt-in
+    bool         enable_cuda_graphs_tracking  = false;  // per-launch cudaGraphLaunch timing — opt-in
+
+    // ── Sampling ────────────────────────────────────────────────────
+    int          system_sample_rate_ms        = 0;      // 0 = disabled; ~50–100 typical
+    int          kernel_sample_rate_ms        = 0;
+    bool         sampling_auto_start          = false;
+
+    // ── Profiling engine ────────────────────────────────────────────
+    BackendKind     backend           = BackendKind::Auto;
+    ProfilingEngine profiling_engine  = ProfilingEngine::PcSampling;
+
+    // ── Advanced ────────────────────────────────────────────────────
+    std::string  config_file = "";   // local JSON config; merged with remote config
+    bool         flush_logs_always   = false;
+    bool         enable_debug_output = false;
 };
 
 bool init(const InitOptions& opts);
@@ -35,6 +58,72 @@ void shutdown();
 void generateReport(const std::string& output_path = "");
 }
 ```
+
+#### Field reference
+
+**Identity**
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `app_name` | `string` | `"gpufl"` | Shown in the dashboard. |
+| `log_path` | `string` | `""` (= `"<app>.log"`) | NDJSON output path; the `gpufl-monitor` daemon tails this. |
+
+**Cloud upload** (see [Sending data to the dashboard](getting-started/sending-data))
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `backend_url` | `string` | `""` | Backend host — do not include `/api/v1`. |
+| `api_key` | `string` | `""` | Workspace API key (`gpfl_xxx`). |
+| `api_path` | `string` | `""` | Empty resolves to `/api/v1`. Override for reverse-proxy mounts. |
+| `config_name` | `string` | `""` | When set, fetches a named remote config before init. |
+| `remote_upload` | `bool` | `false` | **Required** to attach `HttpLogSink` for live upload. |
+
+**What to capture**
+
+| Field | Default | Notes |
+|---|---|---|
+| `enable_kernel_details` | `false` | Capture per-kernel grid/block, occupancy, registers, etc. |
+| `enable_stack_trace` | `false` | Capture CPU stacks at kernel launch and sync points. Powers per-line attribution in the dashboard. |
+| `enable_source_collection` | `true` | Read source files referenced in stacks; needed for SASS/source correlation. |
+| `enable_external_correlation` | `true` | Honor PyTorch/JAX/XLA-pushed external IDs so kernels are tagged with their framework op. |
+| `enable_synchronization` | `true` | Capture `cudaStreamSynchronize` / `cudaDeviceSynchronize` / etc. Time spent here = host blocked on GPU. |
+| `enable_memory_tracking` | `false` | `cudaMalloc` / `cudaFree` / `cudaMallocAsync` timing. Opt-in due to high event volume in TF eager mode. |
+| `enable_cuda_graphs_tracking` | `false` | Per-launch `cudaGraphLaunch` timing. Opt-in pending validation on Blackwell. |
+
+**Sampling**
+
+| Field | Default | Notes |
+|---|---|---|
+| `system_sample_rate_ms` | `0` | `0` = disabled. ~50–100 ms typical for monitoring. |
+| `kernel_sample_rate_ms` | `0` | PC-sampling rate when `profiling_engine = PcSampling`. |
+| `sampling_auto_start` | `false` | Start sampling immediately on init vs. waiting for `systemStart()`. |
+
+**Profiling engine**
+
+See [Profiling Engines](#profiling-engines-nvidia) below.
+
+**Advanced**
+
+| Field | Default | Notes |
+|---|---|---|
+| `config_file` | `""` | Local JSON file applied after defaults, before remote config. |
+| `flush_logs_always` | `false` | `fsync` after every write. Diagnostics; avoid in production. |
+| `enable_debug_output` | `false` | Verbose stderr logs from gpufl-client. |
+
+#### Environment variable overrides
+
+These environment variables override their corresponding `InitOptions`
+fields when set. Programmatic options always win when you set them
+explicitly in code; env vars apply when the field is left at default.
+
+| Env var | Field |
+|---|---|
+| `GPUFL_BACKEND_URL` | `backend_url` |
+| `GPUFL_API_KEY` | `api_key` |
+| `GPUFL_API_PATH` | `api_path` |
+| `GPUFL_CONFIG_NAME` | `config_name` |
+| `GPUFL_REMOTE_UPLOAD` | `remote_upload` (any non-empty, non-`0`/`false` value enables) |
+| `GPUFL_PROFILING_ENGINE` | `profiling_engine` |
 
 ### Scoping
 
@@ -70,17 +159,33 @@ gpufl::systemStop("phase_name");
 enum class BackendKind { Auto, Nvidia, Amd, None };
 ```
 
-### Profiling Engine (NVIDIA only)
+### Profiling engines {#profiling-engines-nvidia}
 
 ```cpp
 enum class ProfilingEngine {
-    None,                // Monitoring only
-    PcSampling,          // PC-level stall sampling
-    SassMetrics,         // Per-instruction metrics
-    RangeProfiler,       // Hardware perf counters
-    PcSamplingWithSass,  // PC sampling + SASS combined
+    None,                // Monitoring only — system metrics, no kernel-level data
+    PcSampling,          // PC-level stall sampling — DEFAULT
+    SassMetrics,         // Per-instruction metrics (replay-based)
+    RangeProfiler,       // Hardware perf counters via Perfworks
+    PcSamplingWithSass,  // PC sampling + SASS in one run — most expensive
 };
 ```
+
+| Engine | NVIDIA | AMD | Overhead | Best for |
+|---|---|---|---|---|
+| `None` | ✓ | ✓ | < 1% | Pure monitoring (utilization / temp / power), no kernel-level data needed |
+| `PcSampling` (default) | ✓ | ✗ | 1–2% | "Why is my kernel slow?" — stall reasons per PC |
+| `SassMetrics` | ✓ | ✗ | 1–2% (kernel replay on pre-sm_120) | Per-instruction execution counts, divergence analysis |
+| `RangeProfiler` | ✓ | ✗ | 2–5% | Hardware counter exports (e.g. memory-throughput limits) |
+| `PcSamplingWithSass` | ✓ | ✗ | 2–4% | Full SASS view + stall reasons in one capture |
+
+:::note AMD users
+On AMD today only `None` (monitoring) and the dispatch-counter
+path are supported. `PcSampling`, `SassMetrics`, and `RangeProfiler`
+are NVIDIA-only — setting them on an AMD backend silently falls
+back to `None` after a startup warning. AMD parity is on the
+roadmap.
+:::
 
 ---
 
