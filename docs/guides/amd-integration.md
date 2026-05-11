@@ -6,29 +6,36 @@ sidebar_position: 2
 
 GPUFlight supports AMD GPUs via ROCm, including HIP kernel tracing, system telemetry, occupancy analysis, and ISA disassembly.
 
+:::warning Profiling engines: AMD vs. NVIDIA
+On AMD today, only `ProfilingEngine::None` (system monitoring) and
+the dispatch-counter path are supported. The NVIDIA-specific
+engines — `PcSampling`, `SassMetrics`, `RangeProfiler`,
+`PcSamplingWithSass` — are not yet implemented on the ROCm
+backend. Setting them on AMD silently falls back to `None` after
+a startup warning. AMD parity is on the roadmap; for now, AMD
+users get kernel timing, occupancy, ISA disassembly, and system
+telemetry, but **not** PC-level stall sampling.
+:::
+
 ## Prerequisites
 
 - ROCm 6.x or later
 - HIP runtime
 - ROCm SMI library
 - rocprofiler-sdk
-- CMake 3.28+
+- CMake 3.31+
 
 ## Build Setup
 
+Fetch the library via CMake `FetchContent` (see
+[Installation](../getting-started/installation) for the canonical
+boilerplate), then enable the AMD backend and link your HIP target:
+
 ```cmake
-include(FetchContent)
-
-FetchContent_Declare(
-    gpufl
-    GIT_REPOSITORY https://github.com/gpu-flight/gpufl-client.git
-    GIT_TAG        main
-)
-
+# AMD backend is opt-in — set BEFORE FetchContent_MakeAvailable(gpufl)
+# so the gpufl-client subproject configures with these flags.
 set(GPUFL_ENABLE_AMD ON CACHE BOOL "" FORCE)
 set(GPUFL_ENABLE_NVIDIA OFF CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(gpufl)
 
 hip_add_executable(my_app my_app.cpp)
 target_link_libraries(my_app PRIVATE gpufl::gpufl hip::host)

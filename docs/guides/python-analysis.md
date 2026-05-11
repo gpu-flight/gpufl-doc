@@ -4,39 +4,15 @@ The `gpufl` Python library provides tools for analyzing, reporting, and visualiz
 
 ## Report Generation
 
-The quickest way to get a performance summary:
+For a one-line text summary of a session — kernel hotspots, memory
+transfers, system metrics — use `generate_report` or the
+`TextReport` class. Both are covered in detail in the
+[Report Generation guide](report-generation#python-api), which is also
+the canonical reference for the C++ side.
 
-```python
-from gpufl.report import generate_report
-
-# Generate and print a text report
-report = generate_report("./logs", log_prefix="my_app")
-print(report)
-
-# Or save to file
-report = generate_report("./logs", log_prefix="my_app", output_path="report.txt")
-```
-
-The report includes:
-- Session summary (duration, GPU device info)
-- Kernel execution statistics (top kernels by GPU time)
-- Kernel occupancy details (grid/block, registers, limiting resource)
-- Memory transfer summary (HtoD/DtoH throughput)
-- System metrics (GPU utilization, temperature, power, VRAM)
-- Scope timing breakdown
-- Profile/SASS analysis (stall reasons, thread divergence)
-
-You can also use the `TextReport` class for more control:
-
-```python
-from gpufl.report import TextReport
-from gpufl.analyzer import GpuFlightSession
-
-session = GpuFlightSession("./logs", log_prefix="my_app")
-report = TextReport(session, top_n=10)
-print(report.generate())
-report.save("report.txt")
-```
+This page focuses on the **interactive** Python analyzer and the
+matplotlib visualization — the unique value the Python library adds
+on top of plain reports.
 
 ## Analyzer (CLI Dashboard)
 

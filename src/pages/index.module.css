@@ -1,23 +1,190 @@
 /**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
+ * Homepage styles. Module-scoped (the `.module.css` suffix triggers
+ * Docusaurus's CSS-Modules pipeline). Goal: typography matches the
+ * dashboard, accent green is the primary CTA color, layout is
+ * focused (one hero + one snippet + four entry links).
  */
 
-.heroBanner {
-  padding: 4rem 0;
+.home {
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hero {
+  padding: 5rem 0 3.5rem;
   text-align: center;
-  position: relative;
-  overflow: hidden;
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+.title {
+  font-size: 2.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin-bottom: 1rem;
+  color: var(--ifm-heading-color);
 }
 
-.buttons {
+.tagline {
+  font-size: 1.15rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+  margin: 0 auto 2rem;
+  max-width: 620px;
+}
+
+.ctaRow {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btnPrimary,
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 22px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: filter 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.btnPrimary {
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border: 1px solid var(--ifm-color-primary);
+}
+
+.btnPrimary:hover {
+  background: var(--ifm-color-primary-dark);
+  color: #fff;
+  text-decoration: none;
+}
+
+.btnSecondary {
+  background: transparent;
+  color: var(--ifm-color-emphasis-900, var(--ifm-font-color-base));
+  border: 1px solid var(--ifm-color-emphasis-300, var(--ifm-color-emphasis-200));
+}
+
+.btnSecondary:hover {
+  background: var(--ifm-color-emphasis-100);
+  text-decoration: none;
+}
+
+/* ── Snippet section ──────────────────────────────────────────────────────── */
+.snippetSection {
+  padding: 0 0 4rem;
+}
+
+.snippetHeading {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+
+/* Sub-step headings ("1. Add to your build", "2. Pick how data...")
+   — smaller than the section H2, larger than body text, with a top
+   margin to separate from the previous code block. */
+.snippetSubhead {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1.75rem 0 0.6rem;
+  color: var(--ifm-color-emphasis-900, var(--ifm-font-color-base));
+  letter-spacing: -0.005em;
+}
+
+.snippetSubhead:first-of-type {
+  margin-top: 1rem;
+}
+
+/* Short paragraph that introduces each tab — explains when to pick
+   that path before the user reads the code. */
+.tabIntro {
+  font-size: 0.92rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+  margin: 0.25rem 0 0.85rem;
+}
+
+/* Sub-label inside a tab when we show two alternatives ("Option A —
+   Docker" / "Option B — Java directly"). Smaller, accent-colored
+   so it reads as a divider rather than a heading. */
+.tabSubLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+  text-transform: none;
+  margin: 1.1rem 0 0.4rem;
+  letter-spacing: 0;
+}
+
+.snippetFooter {
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* ── Entry-link cards ─────────────────────────────────────────────────────── */
+.linksSection {
+  padding: 1rem 0 5rem;
+}
+
+.linkGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.linkCard {
+  padding: 18px 20px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  text-decoration: none;
+  background: var(--ifm-background-color);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.linkCard:hover {
+  border-color: var(--ifm-color-primary);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.linkCardTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+  margin-bottom: 4px;
+}
+
+.linkCardBody {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.5;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media screen and (max-width: 768px) {
+  .hero {
+    padding: 3rem 0 2rem;
+  }
+  .title {
+    font-size: 2rem;
+  }
+  .tagline {
+    font-size: 1rem;
+  }
+  .linkGrid {
+    grid-template-columns: 1fr;
+  }
 }

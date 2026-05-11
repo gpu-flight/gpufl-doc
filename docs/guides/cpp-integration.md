@@ -34,16 +34,9 @@ int main() {
 
 ## InitOptions
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `app_name` | `"gpufl"` | Application name (used in log file names) |
-| `log_path` | `""` | Log file path. If empty, defaults to `<app_name>.log` |
-| `backend` | `Auto` | Backend selection: `Auto`, `Nvidia`, `Amd`, `None` |
-| `sampling_auto_start` | `false` | Start system metric sampling on init |
-| `system_sample_rate_ms` | `0` | System metric sampling interval (0 = disabled) |
-| `enable_kernel_details` | `false` | Capture occupancy, grid/block, registers |
-| `enable_stack_trace` | `true` | Capture CPU stack traces (NVIDIA only) |
-| `profiling_engine` | `PcSampling` | Profiling mode (NVIDIA only) |
+The example above shows the most commonly used fields. For the full
+field reference — every option with type, default, and notes —
+see [`InitOptions` field reference](../api-reference#initoptions-fields).
 
 ## Logical Scoping
 
@@ -79,15 +72,11 @@ When `sampling_auto_start` is enabled, system monitoring runs for the entire ses
 
 ## Profiling Engines (NVIDIA)
 
-Select a profiling engine via `InitOptions::profiling_engine`:
-
-| Engine | Description |
-|--------|-------------|
-| `ProfilingEngine::None` | Monitoring only, no profiling overhead |
-| `ProfilingEngine::PcSampling` | PC-level stall-reason sampling |
-| `ProfilingEngine::SassMetrics` | Per-instruction execution counts |
-| `ProfilingEngine::RangeProfiler` | Hardware performance counters |
-| `ProfilingEngine::PcSamplingWithSass` | PC sampling + SASS metrics combined |
+Select a profiling engine via `InitOptions::profiling_engine`. See
+[Profiling engines](../api-reference#profiling-engines-nvidia) for the
+overhead comparison and when to pick each, and the
+[CUDA integration guide](cuda-integration#profiling-engines) for the
+per-engine deep dive with example code.
 
 ## Report Generation
 

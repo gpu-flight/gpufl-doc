@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'GPUFlight - GPU Profiler & Monitoring System',
-  tagline: 'Lightweight, always-on GPU profiler and monitoring system for NVIDIA CUDA and AMD ROCm. Records kernel behavior with minimal overhead.',
+  tagline: 'Zero-code GPU profiling with a cloud dashboard. CUDA kernel profiling, SASS disassembly, and real-time monitoring — always on, minimal overhead.',
   favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -69,16 +69,20 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
+    // Default to dark mode (most dev-tool docs do in 2026), but
+    // honor the user's OS preference so light-mode users still get
+    // light. Only the cold-start default changes.
     colorMode: {
+      defaultMode: 'dark',
       respectPrefersColorScheme: true,
     },
     navbar: {
       title: 'GPUFlight',
       logo: {
-        alt: 'GPUFlight Logo',
+        alt: 'GPUFlight',
         src: 'img/logo.svg',
+        srcDark: 'img/logo-dark.svg',
       },
       items: [
         {
@@ -89,53 +93,48 @@ const config: Config = {
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
+          href: 'https://app.gpuflight.com',
+          label: 'Dashboard →',
+          position: 'right',
+        },
+        {
           href: 'https://github.com/gpu-flight/gpufl-client',
           label: 'GitHub',
           position: 'right',
         },
       ],
     },
+    // Minimal 2-column footer instead of the default 4-column wall
+    // of links. Style 'light' to match the dashboard's lighter
+    // chrome surfaces; CSS overrides handle dark mode.
     footer: {
-      style: 'dark',
+      style: 'light',
       links: [
         {
-          title: 'Docs',
+          title: 'Product',
           items: [
-            {
-              label: 'Introduction',
-              to: '/docs/intro',
-            },
+            {label: 'Dashboard', href: 'https://app.gpuflight.com'},
+            {label: 'Website',   href: 'https://gpuflight.com'},
           ],
         },
         {
-          title: 'Community',
+          title: 'Resources',
           items: [
-            {
-              label: 'GitHub Issues',
-              href: 'https://github.com/gpu-flight/gpufl-client/issues',
-            },
-          ],
-        },
-        {
-          title: 'More',
-          items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
-              label: 'GitHub',
-              href: 'https://github.com/gpu-flight/gpufl-client',
-            },
+            {label: 'Docs',     to: '/docs/intro'},
+            {label: 'GitHub',   href: 'https://github.com/gpu-flight/gpufl-client'},
+            {label: 'Issues',   href: 'https://github.com/gpu-flight/gpufl-client/issues'},
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} GPUFlight Project. Built with Docusaurus.`,
+      copyright: `© ${new Date().getFullYear()} GPUFlight`,
     },
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
-      additionalLanguages: ['cmake', 'bash', 'python', 'cpp'],
+      // `cuda` aliases to cpp in Prism today; keep cpp as the
+      // canonical highlighter for our CUDA snippets. `docker` /
+      // `yaml` matter for the Deployment guides.
+      additionalLanguages: ['cmake', 'bash', 'python', 'cpp', 'docker', 'yaml', 'json'],
     },
   } satisfies Preset.ThemeConfig,
 };
