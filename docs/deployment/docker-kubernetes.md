@@ -16,18 +16,19 @@ you're integrating from scratch, see the
 
 ## Environment Variables
 
-These match the env vars read by `gpufl::init()`. Programmatic
-`InitOptions` always wins over an env var; an env var wins over
-local defaults.
+In containers, `gpufl::init()` reads its config from `GPUFL_*` env
+vars. For live upload, three are required:
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GPUFL_BACKEND_URL` | for upload | Backend host (e.g. `https://api.gpuflight.com`). Host-only — do **not** include `/api/v1`. |
-| `GPUFL_API_KEY` | for upload | Bearer token. Sent as `Authorization: Bearer <key>`. |
-| `GPUFL_REMOTE_UPLOAD` | for upload | Set to `1` to attach `HttpLogSink` (live in-process upload). Required to actually send data. |
-| `GPUFL_API_PATH` | No | Override the URL prefix for reverse-proxy mounts (e.g. `/profiler/api/v1`). Defaults to `/api/v1`. |
-| `GPUFL_CONFIG_NAME` | No | Name of a remote profiling config to fetch on init (e.g. `production`). |
-| `GPUFL_PROFILING_ENGINE` | No | Profiling engine: `None`, `PcSampling`, `SassMetrics`, `RangeProfiler`, `PcSamplingWithSass`. Defaults to `PcSampling`. |
+| Variable | Purpose |
+|----------|---------|
+| `GPUFL_BACKEND_URL` | Backend host (e.g. `https://api.gpuflight.com`). Host-only. |
+| `GPUFL_API_KEY` | Bearer token. |
+| `GPUFL_REMOTE_UPLOAD` | Set to `1` to attach `HttpLogSink`. |
+
+Common optional vars: `GPUFL_API_PATH` (reverse-proxy mounts),
+`GPUFL_CONFIG_NAME` (remote-config fetch), `GPUFL_PROFILING_ENGINE`
+(override engine). Full list and precedence rules:
+[Environment variable overrides](../api-reference#env-var-overrides).
 
 ## Docker
 

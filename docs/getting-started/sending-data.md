@@ -55,16 +55,18 @@ remote-config fetches without committing to live upload.
 
 ### Environment variables
 
-| Variable | Purpose |
-|---|---|
-| `GPUFL_BACKEND_URL` | Backend base URL (e.g. `https://api.gpuflight.com`). Host-only — do **not** include `/api/v1`. |
-| `GPUFL_API_KEY` | Bearer token. Sent as `Authorization: Bearer <key>` on every request. |
-| `GPUFL_REMOTE_UPLOAD` | Set to `1` (or `true`) to attach `HttpLogSink`. Required. |
-| `GPUFL_API_PATH` | **Optional.** Override the URL prefix when running behind a reverse proxy (e.g. `/profiler/api/v1`). Leave unset for the default `/api/v1`. |
-| `GPUFL_CONFIG_NAME` | **Optional.** Name of a remote profiling config to fetch on init (e.g. `production`). See [Remote configs](#remote-configs). |
+Three env vars get the direct-HTTP path working:
 
-Programmatic options on `gpufl::InitOptions` always win over
-environment variables.
+```bash
+export GPUFL_BACKEND_URL=https://api.gpuflight.com
+export GPUFL_API_KEY=gpfl_xxx
+export GPUFL_REMOTE_UPLOAD=1
+```
+
+Plus `GPUFL_API_PATH` for reverse-proxy mounts and `GPUFL_CONFIG_NAME`
+to pull a named [remote config](#remote-configs). For the complete
+list and how env vars interact with programmatic `InitOptions`, see
+[Environment variable overrides](../api-reference#env-var-overrides).
 
 ### What gets sent
 
@@ -193,22 +195,17 @@ java -jar build/libs/gpuflight-agent-1.0-SNAPSHOT-all.jar \
 ### Environment variables
 
 The agent uses its own `GPUFL_*` namespace — separate from the
-client's `InitOptions` env vars. Required values for the HTTP
-path:
+client's `InitOptions` env vars. The minimum HTTP setup:
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `GPUFL_SOURCE_FOLDER` or `GPUFL_SOURCE_FOLDERS` | Yes | Single folder, or comma-separated list to auto-discover. |
-| `GPUFL_PUBLISHER_TYPE` | Yes | `http` or `kafka`. |
-| `GPUFL_HTTP_URL` | Yes (HTTP) | Full backend events URL — include the path: `https://api.gpuflight.com/api/v1/events/`. |
-| `GPUFL_HTTP_TOKEN` | Recommended | Bearer token. Sent as `Authorization: Bearer <token>`. |
-| `GPUFL_HTTP_TIMEOUT_SEC` | No | Request timeout. Default `10`. |
-| `GPUFL_SOURCE_PREFIX` | No | Override file prefix when using `GPUFL_SOURCE_FOLDER`. Default `gpufl`. |
-| `GPUFL_LOG_TYPES` | No | Comma-separated list of channels to tail. Default `device,scope,system`. |
-| `GPUFL_CURSOR_FILE` | No | Where to persist read offsets across restarts. Default `./cursor.json`. |
+| Variable | Purpose |
+|---|---|
+| `GPUFL_SOURCE_FOLDERS` | Comma-separated list of log directories to auto-discover. |
+| `GPUFL_PUBLISHER_TYPE` | `http` or `kafka`. |
+| `GPUFL_HTTP_URL` | Full backend events URL — include the path: `https://api.gpuflight.com/api/v1/events/`. |
+| `GPUFL_HTTP_TOKEN` | Bearer token. |
 
-For Kafka and the S3 archiver, see the
-[gpufl-agent guide](../guides/gpufl-agent).
+Full reference (cursor file, log-type filter, Kafka, S3 archiver) is
+in the [gpufl-agent guide](../guides/gpufl-agent#configuration).
 
 ### Run the agent — JSON config file
 

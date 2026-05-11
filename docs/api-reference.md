@@ -59,7 +59,7 @@ void generateReport(const std::string& output_path = "");
 }
 ```
 
-#### Field reference
+#### Field reference {#initoptions-fields}
 
 **Identity**
 
@@ -110,7 +110,7 @@ See [Profiling Engines](#profiling-engines-nvidia) below.
 | `flush_logs_always` | `false` | `fsync` after every write. Diagnostics; avoid in production. |
 | `enable_debug_output` | `false` | Verbose stderr logs from gpufl-client. |
 
-#### Environment variable overrides
+#### Environment variable overrides {#env-var-overrides}
 
 These environment variables override their corresponding `InitOptions`
 fields when set. Programmatic options always win when you set them

@@ -15,22 +15,17 @@ GPUFlight supports NVIDIA GPUs via CUDA, providing kernel interception through C
 
 ## Build Setup
 
+Fetch the library via CMake `FetchContent` (see
+[Installation](../getting-started/installation) for the canonical
+boilerplate), then link your CUDA target:
+
 ```cmake
-include(FetchContent)
-
-FetchContent_Declare(
-    gpufl
-    GIT_REPOSITORY https://github.com/gpu-flight/gpufl-client.git
-    GIT_TAG        main
-)
-
-FetchContent_MakeAvailable(gpufl)
-
 add_executable(my_app main.cu)
 target_link_libraries(my_app PRIVATE gpufl::gpufl CUDA::cudart)
 ```
 
-NVIDIA backends are enabled by default (`GPUFL_ENABLE_NVIDIA=ON`).
+NVIDIA backends are enabled by default (`GPUFL_ENABLE_NVIDIA=ON`), so
+no extra flags are needed for a CUDA-only build.
 
 ## CUDA Example
 
@@ -77,7 +72,11 @@ int main() {
 
 ## Profiling Engines
 
-NVIDIA GPUs support multiple profiling engines selected via `InitOptions::profiling_engine`:
+NVIDIA GPUs support multiple profiling engines selected via
+`InitOptions::profiling_engine`. See
+[Profiling engines](../api-reference#profiling-engines-nvidia) for an
+at-a-glance comparison of overhead and use case; this section is the
+deep dive on each engine with example code.
 
 ### None (Monitoring Only)
 
