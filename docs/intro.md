@@ -8,31 +8,66 @@ sidebar_position: 1
 
 Unlike traditional GPU profilers that require stopping or significantly slowing your application (e.g., NVIDIA Nsight with 20-200x overhead), GPUFlight is designed for **continuous, production-grade monitoring**. It captures kernel telemetry, SASS-level instruction analysis, and system metrics — all streamed to a web dashboard for real-time and historical analysis.
 
-## Two Levels of Integration
+## Three Levels of Integration
 
-GPUFlight offers two levels of integration depending on how deep you want to go:
+GPUFlight offers three levels of integration. Pick the deepest level you're willing to integrate — each level adds capabilities on top of the previous one.
 
-### Level 1: Zero-Code Profiling
+### Level 1: Zero-Code Monitoring (sidecar)
 
-**No code changes required.** Add GPUFlight as a sidecar or set an environment variable — get full GPU profiling immediately.
+**No code changes required, no SDK in your app.** Run the `gpufl-monitor` daemon as a sidecar container on the same host as your GPU workload. It samples system metrics directly from NVML (NVIDIA) or ROCm SMI (AMD) and ships them to the cloud dashboard.
 
-What you get with zero code changes:
-- GPU utilization, memory, temperature, power monitoring
-- CUDA kernel event capture (timing, occupancy, grid/block dimensions)
+What you get at Level 1:
+- GPU utilization, VRAM, temperature, power, clock speeds
+- Host CPU and RAM metrics
+- AMD extended metrics: fan speed, junction/memory temperature, voltage, energy, PCIe bandwidth, ECC error counts
+- Real-time and historical dashboard views
+
+What Level 1 **does not** give you (these require Level 2):
+- CUDA/HIP kernel event capture (timing, occupancy, grid/block dimensions)
 - SASS/ISA instruction-level disassembly and stall analysis
 - Memory copy event tracking (H2D, D2H, D2D)
-- CPU and RAM metrics
-- Cloud dashboard with real-time and historical views
+- CPU stack traces
 
 ```bash
-# Docker - just add environment variables
-GPUFL_ENABLED=true
-GPUFL_API_KEY=gf_xxxxx
+# Sidecar — no changes to your application at all
+docker compose -f docker-compose.monitor.yml up -d
 ```
 
-See the [Docker & Kubernetes Guide](deployment/docker-kubernetes) for deployment details.
+See the [Docker & Kubernetes Guide](deployment/docker-kubernetes) and the
+[`gpufl-monitor` daemon README](https://github.com/gpu-flight/gpufl-client/tree/main/daemon)
+for deployment details.
 
-### Level 2: Scope Annotations (Optional)
+### Level 2: Embedded Integration
+
+**Link `gpufl-client` into your application and call `gpufl::init()` once at startup.** This is where the kernel-level features turn on, because GPUFlight needs to attach CUPTI (NVIDIA) or rocprofiler-sdk (AMD) inside your process to intercept GPU activity.
+
+```cpp
+#include <gpufl/gpufl.hpp>
+
+int main() {
+    gpufl::InitOptions opts;
+    opts.app_name = "my_app";
+    opts.sampling_auto_start = true;
+    gpufl::init(opts);
+
+    // ...your existing CUDA/HIP code, unchanged...
+
+    gpufl::shutdown();
+}
+```
+
+After the one-time integration above, all runtime behavior — upload, profiling engine, sampling rate, remote-config name — is controlled by `GPUFL_*` environment variables. No rebuild needed to change configuration.
+
+What Level 2 adds on top of Level 1:
+- CUDA/HIP kernel event capture (timing, occupancy, grid/block dimensions, register usage, shared memory)
+- SASS/ISA instruction-level disassembly and stall analysis
+- Memory copy event tracking (H2D, D2H, D2D)
+- CPU stack traces (NVIDIA)
+- Profiling engines: PC Sampling, SASS Metrics, Range Profiler, PC Sampling + SASS
+
+See the [Installation Guide](getting-started/installation) to get started.
+
+### Level 3: Scope Annotations (Optional, on top of Level 2)
 
 **Add a few lines of code** to connect your application logic to GPU behavior. Scope annotations let you label phases of your pipeline so you can see exactly which part of your code is responsible for which GPU activity.
 
@@ -52,7 +87,7 @@ void train_step() {
 }
 ```
 
-What scope annotations add:
+What scope annotations add on top of Level 2:
 - Named timing regions in the timeline view
 - Nested scope hierarchy (e.g., "epoch > batch > forward_pass")
 - Correlation between your high-level code and low-level kernel events

@@ -138,18 +138,20 @@ Scopes can nest up to any depth. A practical guideline:
 
 Going deeper than 3-4 levels rarely adds useful information.
 
-## Combining with Zero-Code Profiling
+## Adding scopes incrementally
 
-Scopes are **additive** to the zero-code profiling. You can start with zero integration and add scopes incrementally:
+Scopes are **additive**. Once you've completed the one-time embedded integration (`gpufl::init()`), you can introduce scopes gradually:
 
-1. **Day 1**: Deploy with env vars only, see all GPU activity
-2. **Day 2**: Notice `forward_pass` seems slow, add one scope around it
+1. **Day 1**: Embedded integration with `gpufl::init()` — you now see every kernel, SASS-level stalls, and memory copies on the dashboard
+2. **Day 2**: Notice `forward_pass` seems slow — wrap it with one `GFL_SCOPE`
 3. **Day 3**: Add scopes around each layer to pinpoint the bottleneck
 
 You don't need to scope your entire application at once. Add them where you need clarity.
 
+> **Note:** If you haven't done the embedded integration yet, the sidecar-only deployment (`gpufl-monitor`) gives you system telemetry — GPU utilization, memory, temperature, power, CPU/RAM — but **not** kernel events or scopes. See [Three Levels of Integration](../intro#three-levels-of-integration) for the full breakdown.
+
 ## What's Next
 
 - [C++ Integration Guide](cpp-integration) - Full InitOptions reference and advanced usage
-- [Docker & Kubernetes Guide](../deployment/docker-kubernetes) - Zero-code containerized deployment
+- [Docker & Kubernetes Guide](../deployment/docker-kubernetes) - Containerized deployment for apps already linked with `gpufl-client`
 - [CUDA Integration Guide](cuda-integration) - NVIDIA-specific profiling engines
