@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'GPUFlight - GPU Profiler & Monitoring System',
   tagline: 'Zero-code GPU profiling with a cloud dashboard. CUDA kernel profiling, SASS disassembly, and real-time monitoring — always on, minimal overhead.',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {

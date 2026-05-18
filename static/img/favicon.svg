@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 550 550">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        stroke: #005402;
+        stroke-miterlimit: 10;
+        stroke-width: 4px;
+      }
+
+      .cls-2 {
+        fill: #005108;
+      }
+
+      .cls-3 {
+        fill: #013f01;
+      }
+
+      .cls-4 {
+        fill: #002100;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <path class="cls-2" d="M530,0H20C8.95,0,0,8.95,0,20v510c0,11.05,8.95,20,20,20h510c11.05,0,20-8.95,20-20V20c0-11.05-8.95-20-20-20ZM450,150v50h-50v-50h-250v250h250v-100h-50v-50h100v200H100V100h350v50ZM300,250v50h-50v-50h50Z"/>
+      <path class="cls-3" d="M544.14,5.86l-94.14,94.14v100h-50v-50l-100,100v50h-50l-100,100h250v-100h-50v-50h100v200H100L5.86,544.14c3.62,3.62,8.62,5.86,14.14,5.86h510c11.05,0,20-8.95,20-20V20c0-5.52-2.24-10.52-5.86-14.14Z"/>
+      <rect class="cls-4" x="100" y="100" width="350" height="350"/>
+      <g>
+        <rect class="cls-1" x="400" y="100" width="50" height="50"/>
+        <rect class="cls-1" x="250" y="100" width="50" height="50"/>
+        <rect class="cls-1" x="300" y="100" width="50" height="50"/>
+        <rect class="cls-1" x="350" y="100" width="50" height="50"/>
+        <rect class="cls-1" x="200" y="100" width="50" height="50"/>
+        <rect class="cls-1" x="150" y="100" width="50" height="50"/>
+        <rect class="cls-1" x="100" y="100" width="50" height="50"/>
+        <rect class="cls-1" x="100" y="150" width="50" height="50"/>
+        <rect class="cls-1" x="100" y="200" width="50" height="50"/>
+        <rect class="cls-1" x="100" y="250" width="50" height="50"/>
+        <rect class="cls-1" x="100" y="300" width="50" height="50"/>
+        <rect class="cls-1" x="100" y="350" width="50" height="50"/>
+        <rect class="cls-1" x="100" y="400" width="50" height="50"/>
+        <rect class="cls-1" x="150" y="400" width="50" height="50"/>
+        <rect class="cls-1" x="200" y="400" width="50" height="50"/>
+        <rect class="cls-1" x="250" y="400" width="50" height="50"/>
+        <rect class="cls-1" x="300" y="400" width="50" height="50"/>
+        <rect class="cls-1" x="350" y="400" width="50" height="50"/>
+        <rect class="cls-1" x="400" y="400" width="50" height="50"/>
+        <rect class="cls-1" x="400" y="300" width="50" height="50"/>
+        <rect class="cls-1" x="400" y="350" width="50" height="50"/>
+        <rect class="cls-1" x="400" y="150" width="50" height="50"/>
+        <rect class="cls-1" x="400" y="250" width="50" height="50"/>
+        <rect class="cls-1" x="350" y="250" width="50" height="50"/>
+        <rect class="cls-1" x="250" y="250" width="50" height="50"/>
+      </g>
+    </g>
+  </g>
+</svg>
