@@ -52,7 +52,7 @@ docker run -d --name gpufl-agent \
   -v /var/log/gpuflight:/var/log/gpuflight \
   -e GPUFL_SOURCE_FOLDERS=/var/log/gpuflight \
   -e GPUFL_PUBLISHER_TYPE=http \
-  -e GPUFL_HTTP_URL=https://api.gpuflight.com/api/v1/events/ \
+  -e GPUFL_HTTP_HOST=https://api.gpuflight.com \
   -e GPUFL_HTTP_TOKEN=$GPUFL_API_KEY \
   ghcr.io/gpu-flight/gpufl-agent:latest
 ```
@@ -94,7 +94,7 @@ Quick test — runs in your terminal, Ctrl-C to stop:
 java -jar build/libs/gpuflight-agent-1.0-SNAPSHOT-all.jar \
   --folders=/var/log/gpuflight \
   --type=http \
-  --url=https://api.gpuflight.com/api/v1/events/ \
+  --host=https://api.gpuflight.com \
   --token=$GPUFL_API_KEY
 ```
 
@@ -123,7 +123,8 @@ sudo chown gpufl-agent:gpufl-agent /var/lib/gpufl-agent
 sudo tee /etc/gpuflight/agent.env > /dev/null <<'EOF'
 GPUFL_SOURCE_FOLDERS=/var/log/gpuflight
 GPUFL_PUBLISHER_TYPE=http
-GPUFL_HTTP_URL=https://api.gpuflight.com/api/v1/events/
+GPUFL_HTTP_HOST=https://api.gpuflight.com
+GPUFL_HTTP_API_VERSION=v1
 GPUFL_HTTP_TOKEN=gpfl_xxx
 GPUFL_CURSOR_FILE=/var/lib/gpufl-agent/cursor.json
 EOF
@@ -191,7 +192,7 @@ nssm install gpufl-agent ^
 nssm set gpufl-agent AppEnvironmentExtra ^
   "GPUFL_SOURCE_FOLDERS=C:\ProgramData\gpuflight\logs" ^
   "GPUFL_PUBLISHER_TYPE=http" ^
-  "GPUFL_HTTP_URL=https://api.gpuflight.com/api/v1/events/" ^
+  "GPUFL_HTTP_HOST=https://api.gpuflight.com" ^
   "GPUFL_HTTP_TOKEN=gpfl_xxx"
 nssm start gpufl-agent
 ```
@@ -257,12 +258,13 @@ you want explicit control.
 
 | Flag / env | Default | Purpose |
 |---|---|---|
-| `--url=URL` / `GPUFL_HTTP_URL` | (required) | **Full** events URL — must include the path: `https://api.gpuflight.com/api/v1/events/`. |
+| `--host=URL` / `GPUFL_HTTP_HOST` | (required) | Backend scheme+host, e.g. `https://api.gpuflight.com`. The agent appends `/api/{version}/events/<type>` automatically — do **not** include the path. |
+| `--api-version=V` / `GPUFL_HTTP_API_VERSION` | `v1` | Backend API version. Bump when the backend cuts v2 etc. |
 | `--token=TOKEN` / `GPUFL_HTTP_TOKEN` | (none) | Bearer token. Sent as `Authorization: Bearer <token>`. |
 | `--timeout=SEC` / `GPUFL_HTTP_TIMEOUT_SEC` | `10` | Per-request timeout. |
 
-The HTTP publisher batches lines and POSTs them to your endpoint
-with `Content-Type: application/x-ndjson`.
+The HTTP publisher batches lines and POSTs them to
+`{host}/api/{version}/events/<type>` with `Content-Type: application/x-ndjson`.
 
 #### Kafka publisher
 
@@ -304,7 +306,8 @@ java -jar gpufl-agent.jar --config=/etc/gpuflight/agent.json
   ],
   "publisher": {
     "type": "http",
-    "endpointUrl": "https://api.gpuflight.com/api/v1/events/",
+    "hostUrl": "https://api.gpuflight.com",
+    "apiVersion": "v1",
     "authToken": "gpfl_xxx"
   },
   "archiver": {
