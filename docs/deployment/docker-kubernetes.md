@@ -155,8 +155,10 @@ spec:
               value: "/var/log/gpuflight"
             - name: GPUFL_PUBLISHER_TYPE
               value: "http"
-            - name: GPUFL_HTTP_URL
-              value: "https://api.gpuflight.com/api/v1/events/"
+            - name: GPUFL_HTTP_HOST
+              value: "https://api.gpuflight.com"
+            - name: GPUFL_HTTP_API_VERSION   # defaults to v1; bump for future versions
+              value: "v1"
             - name: GPUFL_HTTP_TOKEN
               valueFrom:
                 secretKeyRef:

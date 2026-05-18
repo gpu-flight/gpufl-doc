@@ -73,7 +73,7 @@ docker run -d --name gpufl-agent \\
   -v /var/log/gpuflight:/var/log/gpuflight \\
   -e GPUFL_SOURCE_FOLDERS=/var/log/gpuflight \\
   -e GPUFL_PUBLISHER_TYPE=http \\
-  -e GPUFL_HTTP_URL=https://api.gpuflight.com/api/v1/events/ \\
+  -e GPUFL_HTTP_HOST=https://api.gpuflight.com \\
   -e GPUFL_HTTP_TOKEN=$GPUFL_API_KEY \\
   ghcr.io/gpu-flight/gpufl-agent:latest`;
 
@@ -87,7 +87,7 @@ cd gpufl-agent
 java -jar build/libs/gpuflight-agent-1.0-SNAPSHOT-all.jar \\
   --folders=/var/log/gpuflight \\
   --type=http \\
-  --url=https://api.gpuflight.com/api/v1/events/ \\
+  --host=https://api.gpuflight.com \\
   --token=$GPUFL_API_KEY`;
 
 export default function Home(): ReactNode {

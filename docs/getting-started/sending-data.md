@@ -167,7 +167,7 @@ docker run -d --name gpufl-agent \
   -v /var/log/gpuflight:/var/log/gpuflight \
   -e GPUFL_SOURCE_FOLDERS=/var/log/gpuflight \
   -e GPUFL_PUBLISHER_TYPE=http \
-  -e GPUFL_HTTP_URL=https://api.gpuflight.com/api/v1/events/ \
+  -e GPUFL_HTTP_HOST=https://api.gpuflight.com \
   -e GPUFL_HTTP_TOKEN=$GPUFL_API_KEY \
   ghcr.io/gpu-flight/gpufl-agent:latest
 ```
@@ -193,7 +193,7 @@ Run it pointed at your log directory:
 java -jar build/libs/gpuflight-agent-1.0-SNAPSHOT-all.jar \
   --folders=/var/log/gpuflight \
   --type=http \
-  --url=https://api.gpuflight.com/api/v1/events/ \
+  --host=https://api.gpuflight.com \
   --token=$GPUFL_API_KEY
 ```
 
@@ -206,7 +206,8 @@ client's `InitOptions` env vars. The minimum HTTP setup:
 |---|---|
 | `GPUFL_SOURCE_FOLDERS` | Comma-separated list of log directories to auto-discover. |
 | `GPUFL_PUBLISHER_TYPE` | `http` or `kafka`. |
-| `GPUFL_HTTP_URL` | Full backend events URL — include the path: `https://api.gpuflight.com/api/v1/events/`. |
+| `GPUFL_HTTP_HOST` | Backend scheme+host, e.g. `https://api.gpuflight.com`. The agent appends `/api/{version}/events/<type>` automatically. |
+| `GPUFL_HTTP_API_VERSION` | Optional — backend API version. Defaults to `v1`. |
 | `GPUFL_HTTP_TOKEN` | Bearer token. |
 
 Full reference (cursor file, log-type filter, Kafka, S3 archiver) is
@@ -228,7 +229,8 @@ java -jar gpuflight-agent.jar --config=/etc/gpuflight/agent.json
   ],
   "publisher": {
     "type": "http",
-    "endpointUrl": "https://api.gpuflight.com/api/v1/events/",
+    "hostUrl": "https://api.gpuflight.com",
+    "apiVersion": "v1",
     "authToken": "gpfl_xxx"
   }
 }
@@ -243,8 +245,9 @@ java -jar gpuflight-agent.jar --config=/etc/gpuflight/agent.json
    `{prefix}.{device|scope|system}.log` files.
 3. For each file, a virtual thread tails it incrementally,
    tracking byte offset in `cursor.json`.
-4. New lines are batched and POSTed to `GPUFL_HTTP_URL` (or
-   produced to Kafka if `--type=kafka`).
+4. New lines are batched and POSTed to
+   `{GPUFL_HTTP_HOST}/api/{GPUFL_HTTP_API_VERSION}/events/<type>`
+   (or produced to Kafka if `--type=kafka`).
 5. On crash or restart, the cursor file lets the agent resume
    exactly where it left off — no duplicates, no gaps.
 
