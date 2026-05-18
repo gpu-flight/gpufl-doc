@@ -77,11 +77,16 @@ identification headers so the backend knows which client version
 sent it:
 
 ```
-User-Agent: gpufl/0.1.0
-X-GpuFlight-Client-Version: 0.1.0
+User-Agent: gpufl/0.1.4
+X-GpuFlight-Client-Version: 0.1.4
 X-GpuFlight-Wire-Version: 1
 Authorization: Bearer gpfl_xxx
 ```
+
+(The `X-GpuFlight-Client-Version` reflects whatever client release
+is installed; the `Wire-Version` is the schema version of the JSON
+payloads — bumped only on breaking changes to the columnar format,
+still `1` as of `0.1.4`.)
 
 ### When this is the right choice
 

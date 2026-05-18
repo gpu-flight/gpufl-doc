@@ -196,13 +196,14 @@ roadmap.
 ```python
 import gpufl as gfl
 
-opts = gfl.InitOptions()
-opts.app_name = "my_app"
-opts.sampling_auto_start = True
-opts.system_sample_rate_ms = 50
-opts.backend = gfl.BackendKind.Auto
-
-gfl.init(opts)
+# Function-style init — every InitOptions field is a kwarg.
+gfl.init(
+    app_name="my_app",
+    sampling_auto_start=True,
+    system_sample_rate_ms=50,
+    backend=gfl.BackendKind.Auto,
+    profiling_engine=gfl.ProfilingEngine.PcSampling,
+)
 
 with gfl.Scope("phase_name"):
     # GPU work here
@@ -213,6 +214,40 @@ gfl.system_stop("sampling")
 
 gfl.shutdown()
 ```
+
+#### The `None` enum value — use the `None_` alias in Python
+
+Both `ProfilingEngine` and `BackendKind` have a value literally named
+`None`. Because `None` is a reserved keyword in Python, you cannot
+write `gfl.ProfilingEngine.None` — that's a `SyntaxError`. The
+bindings expose a clean trailing-underscore alias:
+
+```python
+# "No profiling engine" — monitoring only.
+gfl.init(app_name="m", profiling_engine=gfl.ProfilingEngine.None_)
+
+# "No backend" — for stub / test sessions.
+gfl.init(app_name="m", backend=gfl.BackendKind.None_)
+```
+
+The alias points at exactly the same enum value as the C++
+`ProfilingEngine::None` / `BackendKind::None` constants; it's purely
+a Python-side naming convenience (mirrors the `class_` / `type_`
+pattern pybind11 uses elsewhere).
+
+#### Migrating from v0.1.0 / v0.1.1
+
+The Python `init()` signature was trimmed in **v1.0.0-prep** to drop
+three legacy parameters that duplicated newer, more expressive ones.
+If you're on a pre-v1.0 release and see a `TypeError: init() got an
+unexpected keyword argument …`, swap as follows:
+
+| Old kwarg | New equivalent |
+|---|---|
+| `enable_profiling=False` | `profiling_engine=gpufl.ProfilingEngine.None_` |
+| `enable_profiling=True` (default) | nothing — `profiling_engine` already defaults to `PcSampling` |
+| `enable_perf_scope=True` | `profiling_engine=gpufl.ProfilingEngine.RangeProfiler` |
+| `remote_config="https://…"` | `backend_url="https://…"` (same meaning) |
 
 ### Analyzer
 
@@ -263,8 +298,17 @@ text = report.generate()    # string
 ### Visualization
 
 ```python
-import gpufl.viz as viz
+import gpufl.viz as viz   # v1.0.0+ only — see warning below
 
 viz.init("./logs/*.log")
 viz.show()
 ```
+
+:::warning Broken in v0.1.x
+`gpufl.viz` silently drops every batch row in releases `0.1.0`
+through `0.1.4` (the data layer was never updated for the columnar
+wire format the C++ client emits). Use the [analyzer](#analyzer) for
+visualization-grade insight until the v1.0.0 rewrite ships. See the
+[Python Analysis guide](guides/python-analysis#visualization-timeline)
+for the full context.
+:::

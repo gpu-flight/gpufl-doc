@@ -32,6 +32,16 @@ Common optional vars: `GPUFL_API_PATH` (reverse-proxy mounts),
 
 ## Docker
 
+:::tip Reference Dockerfile
+A working example Dockerfile based on the NVIDIA CUDA devel image
+(builds `gpufl` from source so NVML is linked correctly, runs
+JupyterLab) lives in the client repo at
+[`example/python/docker/Dockerfile`](https://github.com/gpu-flight/gpufl-client/blob/main/example/python/docker/Dockerfile).
+It pins to a tagged client release and passes the CMake flags
+(`-DNVML_LIBRARY=…`, `-DCUDAToolkit_ROOT=/usr/local/cuda`) needed
+for reliable NVML detection inside `pip`'s isolated build env.
+:::
+
 ### Basic Usage — direct HTTP upload
 
 ```bash

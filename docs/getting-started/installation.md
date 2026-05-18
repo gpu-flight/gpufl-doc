@@ -69,10 +69,30 @@ The Python library provides tools for analyzing, reporting, and visualizing the 
 pip install gpufl
 ```
 
-### Full Installation (with Visualization)
+:::note Linux NVML in v0.1.0 – v0.1.2
+The Linux wheels published for `0.1.0`, `0.1.1`, and `0.1.2` shipped
+without NVML linked in — the result was that GPU telemetry (`devices`
+array in `job_start`) silently came up empty even on a working CUDA
+system. **Use `v0.1.3` or later.** Plain `pip install gpufl` (with
+no version pin) resolves to the latest, which is what you want.
+:::
+
+### Full Installation (with Analyzer)
 
 ```bash
-pip install "gpufl[numba,viz,analyzer]"
+pip install "gpufl[numba,analyzer]"
 ```
+
+The `analyzer` extra pulls in `pandas` + `rich` for the
+`GpuFlightSession` dashboard and report generation.
+
+:::caution `viz` extra
+A `viz` extra exists (for matplotlib timeline plots) but the
+underlying `gpufl.viz` module is broken in `0.1.x` — it never
+learned to decode the columnar batch wire format and produces an
+empty chart. The rewrite lands in **v1.0.0**. Until then, leave
+`viz` out of your install line and use the analyzer (which works
+correctly) for visualization-grade insight.
+:::
 
 The Python library works with logs from both NVIDIA and AMD sessions — no backend-specific installation is needed for analysis.

@@ -82,27 +82,43 @@ gpufl::scope("inference", [&]() {
 
 ## Python Scopes
 
+The Python module is `gpufl` (the package name on PyPI), and the scope
+type is `gpufl.Scope` — a context manager that takes a scope name and
+an optional free-form tag. Both args are forwarded to the underlying
+C++ `ScopedMonitor`, so the same scope events appear in the NDJSON log
+whether your code is C++ or Python.
+
 ```python
-import gpuflight
+import gpufl
+
+# Initialize once at app startup. profiling_engine selects what kind
+# of in-scope sampling runs; pick None_ for monitor-only sessions.
+gpufl.init(
+    app_name="my_training",
+    log_path="./logs",
+    sampling_auto_start=True,
+    system_sample_rate_ms=50,
+    profiling_engine=gpufl.ProfilingEngine.PcSampling,
+)
 
 # Context manager
-with gpuflight.scope("forward_pass"):
+with gpufl.Scope("forward_pass"):
     output = model(input)
 
-with gpuflight.scope("backward_pass"):
+# Optional tag — second positional arg, shown next to the name in the
+# dashboard so you can distinguish "forward_pass / batch_42" etc.
+with gpufl.Scope("backward_pass", "batch_42"):
     loss.backward()
+
+gpufl.shutdown()
 ```
 
-### Decorating Functions
-
-```python
-@gpuflight.scope("training_step")
-def train_step(batch):
-    output = model(batch)
-    loss = criterion(output, labels)
-    loss.backward()
-    optimizer.step()
-```
+:::note No decorator form yet
+The Python binding exposes `Scope` as a context-manager class only —
+there's no `@gpufl.scope(...)` decorator today. Wrap a function body
+with `with gpufl.Scope("name"):` instead. (A decorator wrapper is on
+the v1.x roadmap.)
+:::
 
 ## Scope Best Practices
 
