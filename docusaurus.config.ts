@@ -81,8 +81,9 @@ const config: Config = {
       title: 'GPUFlight',
       logo: {
         alt: 'GPUFlight',
+        // Single logo for both modes — the green badge reads fine on
+        // light AND dark backgrounds, so no `srcDark` variant needed.
         src: 'img/logo.svg',
-        srcDark: 'img/logo-dark.svg',
       },
       items: [
         {
