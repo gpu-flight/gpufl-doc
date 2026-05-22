@@ -40,7 +40,7 @@ struct InitOptions {
 
     // ── Sampling ────────────────────────────────────────────────────
     int          system_sample_rate_ms        = 0;      // 0 = disabled; ~50–100 typical
-    int          kernel_sample_rate_ms        = 0;
+    int          kernel_sample_rate_ms        = 0;      // DEPRECATED (1.0.1) — no longer has any effect
     bool         sampling_auto_start          = false;
 
     // ── Profiling engine ────────────────────────────────────────────
@@ -95,7 +95,7 @@ void generateReport(const std::string& output_path = "");
 | Field | Default | Notes |
 |---|---|---|
 | `system_sample_rate_ms` | `0` | `0` = disabled. ~50–100 ms typical for monitoring. |
-| `kernel_sample_rate_ms` | `0` | PC-sampling rate when `profiling_engine = PcSampling`. |
+| `kernel_sample_rate_ms` | `0` | **Deprecated (1.0.1) — has no effect.** It previously throttled kernel activity-record processing, but that corrupted kernel GPU-time totals (durations were over-counted on host-bound workloads), so it was disabled. All kernel activity records are now always captured. Still accepted (won't error) for backward compatibility; will be removed in a future major release. |
 | `sampling_auto_start` | `false` | Start sampling immediately on init vs. waiting for `systemStart()`. |
 
 **Profiling engine**
