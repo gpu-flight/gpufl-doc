@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'GPUFlight - GPU Profiler & Monitoring System',
-  tagline: 'Zero-code GPU profiling with a cloud dashboard. CUDA kernel profiling, SASS disassembly, and real-time monitoring — always on, minimal overhead.',
+  tagline: 'The GPU profiler that scales from development to production. Deep kernel diagnostics during dev, continuous low-overhead profiling in production. Supports NVIDIA CUDA and AMD ROCm.',
   favicon: 'img/favicon.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future

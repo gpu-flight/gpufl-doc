@@ -161,23 +161,48 @@ enum class BackendKind { Auto, Nvidia, Amd, None };
 
 ### Profiling engines {#profiling-engines-nvidia}
 
+GPUFlight ships two recommended modes, **Continuous** for production and **Deep**
+for development. A third **Range** mode is available for hardware-counter use
+cases. The C++ enum still uses the historical names today; the user-facing mode
+names will become the canonical enum values in a future release (with the old
+names kept as deprecated aliases).
+
+:::note Modes are additive
+The mode you pick is layered **on top of** a base set of data that the SDK
+always captures when linked in-process (kernel events with timing, grid/block
+dimensions, registers, theoretical occupancy, memcpy events, NVML system
+metrics, and host metrics). The mode controls what additional profiling data
+is collected, not whether the base layer runs. Picking `None` still gives you
+the full base layer; it just disables the optional PC sampling / SASS / Range
+data on top.
+:::
+
 ```cpp
 enum class ProfilingEngine {
-    None,                // Monitoring only — system metrics, no kernel-level data
-    PcSampling,          // PC-level stall sampling — DEFAULT
-    SassMetrics,         // Per-instruction metrics (replay-based)
-    RangeProfiler,       // Hardware perf counters via Perfworks
-    PcSamplingWithSass,  // PC sampling + SASS in one run — most expensive
+    None,                // Base layer only. No additional profiling data.
+    PcSampling,          // Continuous mode. PC-level stall sampling.
+    SassMetrics,         // Per-instruction metrics (subset of Deep mode).
+    RangeProfiler,       // Range mode. Hardware perf counters via Perfworks.
+    PcSamplingWithSass,  // Deep mode. PC sampling + SASS instrumentation.
 };
 ```
 
-| Engine | NVIDIA | AMD | Overhead | Best for |
-|---|---|---|---|---|
-| `None` | ✓ | ✓ | < 1% | Pure monitoring (utilization / temp / power), no kernel-level data needed |
-| `PcSampling` (default) | ✓ | ✗ | 1–2% | "Why is my kernel slow?" — stall reasons per PC |
-| `SassMetrics` | ✓ | ✗ | 1–2% (kernel replay on pre-sm_120) | Per-instruction execution counts, divergence analysis |
-| `RangeProfiler` | ✓ | ✗ | 2–5% | Hardware counter exports (e.g. memory-throughput limits) |
-| `PcSamplingWithSass` | ✓ | ✗ | 2–4% | Full SASS view + stall reasons in one capture |
+| Mode | Enum value | NVIDIA | AMD | Overhead | What it adds on top of the base layer |
+|---|---|---|---|---|---|
+| Base layer (always on with SDK) | n/a | ✓ | ✓ | Minimal | Kernel events (timing, grid/block, registers, theoretical occupancy), memcpy events, NVML system metrics, host metrics |
+| **Continuous** (recommended default) | `PcSampling` | ✓ | ✗ | Low; production-safe | Stall reasons per PC, hot-PC distribution, function name and source/line correlation per sample |
+| **Deep** | `PcSamplingWithSass` | ✓ | ✗ | Significant kernel slowdown while the scope is active | Everything Continuous adds, plus per-instruction execution counts, memory coalescing efficiency, divergence analysis |
+| **Range** | `RangeProfiler` | ✓ | ✗ | Moderate, per scope | Hardware counter exports per scope (e.g. achieved occupancy, DRAM throughput). Niche. |
+| (legacy) | `SassMetrics` | ✓ | ✗ | Same overhead class as Deep | Subset of Deep. Kept for backward compatibility; new code should use `PcSamplingWithSass`. |
+| Monitoring only | `None` | ✓ | ✓ | Minimal | Nothing on top of the base layer. |
+
+:::tip Deep-mode overhead is intrinsic
+The Deep-mode kernel slowdown comes from instrumenting every executed SASS
+instruction with counter increments. The same constraint applies to any tool
+that collects per-instruction counters (including NVIDIA Nsight Compute, which
+addresses it with kernel replay instead of slower passes). Use Deep mode for
+the specific kernel you are investigating, not for fleet-wide deployment.
+:::
 
 :::note AMD users
 On AMD today only `None` (monitoring) and the dispatch-counter

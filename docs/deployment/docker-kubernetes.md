@@ -230,16 +230,18 @@ No `import gpuflight` in your Python code. No framework integrations to configur
 
 ## Overhead
 
-GPUFlight is designed for always-on deployment:
+GPUFlight's **Continuous mode** is designed for always-on deployment. **Deep mode** is the opposite, intended for one-off kernel investigation during development and never enabled fleet-wide.
 
-| Mode | CPU Overhead | GPU Overhead |
-|------|-------------|-------------|
-| Monitoring only (`profiling_engine=none`) | < 1% | Negligible |
-| PC Sampling | ~ 1-2% | < 1% |
-| SASS Metrics | ~ 1-2% | < 1% |
-| Range Profiler | ~ 2-5% | ~ 1-3% |
+| Mode | Enum value | Typical overhead |
+|------|-----------|-----------------|
+| Monitoring only | `None` | Minimal |
+| **Continuous** (production-safe) | `PcSampling` | Low; safe to run 24/7 |
+| Range | `RangeProfiler` | Moderate, per scope |
+| **Deep** (development only) | `PcSamplingWithSass` | **Significant kernel slowdown while the scope is active** |
 
-Compare this to NVIDIA Nsight, which imposes 20-200x overhead and can only profile for a few minutes at a time.
+The Deep-mode slowdown is intrinsic to SASS-level instrumentation. The same physics applies to any tool that collects per-instruction execution counts, including NVIDIA Nsight Compute (which addresses it with kernel replay, paying the cost as additional passes instead of slower passes). Use Deep mode for the specific kernel you are investigating, not for production fleet observability.
+
+Actual numbers vary by hardware generation, driver version, kernel characteristics, and sampling configuration. Benchmark your own workload before committing to a deployment mode.
 
 ## What's Next
 

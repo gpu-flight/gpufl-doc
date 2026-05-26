@@ -4,9 +4,14 @@ sidebar_position: 1
 
 # Introduction
 
-**GPUFlight** is a **low-overhead, always-on** GPU profiler and monitoring system with a **cloud dashboard**. Built on CUPTI (NVIDIA) and rocprofiler-sdk (AMD), it captures kernel telemetry, SASS-level instruction analysis, and system metrics with under 2% overhead in monitoring mode — so you can profile continuously in production, not just during development.
+**GPUFlight** is a GPU profiler and monitoring system that scales with your kernel from development to production. Built on CUPTI (NVIDIA) and rocprofiler-sdk (AMD), it captures kernel telemetry, SASS-level instruction analysis, and system metrics, all streamed to a cloud dashboard.
 
-Unlike traditional GPU profilers that require stopping or significantly slowing your application (e.g., NVIDIA Nsight with 20-200x overhead), GPUFlight is designed for **continuous, production-grade monitoring**. It captures kernel telemetry, SASS-level instruction analysis, and system metrics — all streamed to a web dashboard for real-time and historical analysis.
+GPUFlight ships two modes:
+
+- **Deep mode** for development. Per-instruction SASS metrics, memory coalescing analysis, divergence analysis, full source correlation. Use it when you are writing or tuning a specific kernel.
+- **Continuous mode** for production. Low-overhead PC sampling, safe to leave on across a fleet 24/7. Use it for always-on observability, regression detection, and long-tail outlier hunting.
+
+The mode is a deployment-time switch, not a different tool. The same SDK, same scopes, same dashboard, same data model work on both sides. Set `GPUFL_PROFILING_ENGINE=Continuous` in your production environment and the same binary that ran in Deep mode locally drops to Continuous on the fleet. No rebuild.
 
 ## Three Levels of Integration
 
@@ -126,12 +131,12 @@ for the full mental model and a decision table.
 - Historical kernel timeline and performance trends
 - SASS disassembly viewer with stall reason highlighting
 - Occupancy analysis with per-resource breakdown
-- Accessible from any browser — no desktop app required
+- Accessible from any browser, no desktop app required
 
 ### Production-Ready Architecture
 - Lock-free ring buffer for zero-contention kernel event capture
 - Background collector thread with batched output
-- Minimal overhead suitable for always-on deployment
+- Continuous mode runs at low overhead, safe for always-on deployment
 - Docker and Kubernetes native deployment
 
 ### CUDA Kernel Profiling
@@ -140,11 +145,10 @@ for the full mental model and a decision table.
 - Limiting resource identification
 - CPU stack traces (NVIDIA)
 
-### Profiling Engines (NVIDIA)
-- **PC Sampling**: Stall-reason sampling at the program counter level
-- **SASS Metrics**: Per-instruction execution counts and memory access patterns
-- **Range Profiler**: Hardware performance counters via NVIDIA PerfWorks
-- **PC Sampling + SASS**: Combined mode for comprehensive instruction-level analysis
+### Profiling Modes (NVIDIA)
+- **Continuous mode** (PC Sampling): Stall-reason sampling at the program counter level. Low overhead, production-safe, recommended default.
+- **Deep mode** (PC Sampling + SASS): Per-instruction execution counts, memory coalescing efficiency, divergence analysis, full source correlation. Significant kernel slowdown while the scope is active; opt-in for development investigation.
+- **Range mode** (Range Profiler): Hardware performance counters via NVIDIA PerfWorks for per-scope metric exports. Moderate per-scope overhead.
 
 ### ISA Disassembly
 - **NVIDIA**: SASS disassembly via `nvdisasm`

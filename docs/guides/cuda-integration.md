@@ -84,7 +84,7 @@ deep dive on each engine with example code.
 opts.profiling_engine = gpufl::ProfilingEngine::None;
 ```
 
-Captures kernel events and system metrics with zero profiling overhead. Use this for production monitoring.
+Captures system metrics only (utilization, temperature, power, memory) via NVML. No kernel-level data and negligible host-side overhead. Use this when you want fleet health visibility without any kernel instrumentation. For production deployments that need kernel timing and stall data, use Continuous mode (`PcSampling`) instead.
 
 ### PC Sampling
 
