@@ -95,7 +95,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Docs"
-      description="Documentation for GPUFlight — low-overhead GPU profiling and monitoring for NVIDIA and AMD."
+      description="Documentation for GPUFlight. The GPU profiler that scales from development to production. Supports NVIDIA CUDA and AMD ROCm."
     >
       <main className={styles.home}>
         <section className={styles.hero}>
@@ -104,9 +104,9 @@ export default function Home(): ReactNode {
               GPUFlight Docs
             </Heading>
             <p className={styles.tagline}>
-              Low-overhead GPU profiling and monitoring for NVIDIA and AMD.
+              Deep GPU kernel diagnostics for development. Continuous, low-overhead profiling for production.
               <br />
-              Zero-code via env vars, or 5 lines for full integration.
+              Switch modes with one environment variable. Supports NVIDIA CUDA and AMD ROCm.
             </p>
             <div className={styles.ctaRow}>
               <Link className={styles.btnPrimary} to="/docs/intro">

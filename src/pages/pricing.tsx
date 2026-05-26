@@ -172,8 +172,8 @@ export default function Pricing(): ReactNode {
             </p>
             <Heading as="h4">What's the performance overhead?</Heading>
             <p>
-              Less than 1-2% CPU overhead for monitoring and PC sampling. Compare this to NVIDIA Nsight
-              which imposes 20-200x slowdown and can only profile for a few minutes.
+              Continuous mode (the production-safe default) runs at low overhead and is safe to leave on across a fleet.
+              Deep mode (development only, opt-in) instruments SASS instructions and the active kernel runs significantly slower while the measurement scope is open. That cost is intrinsic to per-instruction profiling and applies to any tool that collects this data class. Use Deep mode for the kernel you are investigating, not for fleet observability. Actual numbers vary by hardware, driver, and workload; benchmark your own application before committing to a deployment mode.
             </p>
             <Heading as="h4">Can I self-host?</Heading>
             <p>
