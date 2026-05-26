@@ -11,7 +11,7 @@ int main() {
     gpufl::InitOptions opts;
     opts.app_name = "my_app";
     opts.log_path = "my_app.log";          // log files: my_app.device.log, my_app.scope.log, my_app.system.log
-    opts.sampling_auto_start = true;       // start system metric sampling immediately
+    opts.continuous_system_sampling = true;  // sample system metrics for the entire session
     opts.system_sample_rate_ms = 50;       // sample GPU/CPU metrics every 50ms
     opts.enable_kernel_details = true;     // capture grid/block, occupancy, registers
     // opts.backend = gpufl::BackendKind::Auto;  // auto-detect NVIDIA or AMD (default)
@@ -60,15 +60,29 @@ Scopes can be nested. All kernels launched within a scope are attributed to that
 
 ## System Monitoring
 
-Start and stop system metric collection independently:
+The `continuous_system_sampling` flag selects the sampling policy:
 
-```cpp
-gpufl::systemStart("training_phase");
-// ... GPU work ...
-gpufl::systemStop("training_phase");
-```
+- **`true`** — system metrics (GPU util, VRAM, temp, power, CPU, RAM) are
+  collected continuously from `gpufl::init()` to `gpufl::shutdown()`. Use
+  for always-on monitoring.
+- **`false`** (default) — the sampler is idle outside of explicit
+  windows. Two ways to activate it:
+  - **Automatic, via scopes** — any `GFL_SCOPE` region brackets a
+    sampling window. Sampling starts on scope entry, stops on the
+    outermost scope's exit. Nested scopes compose; the sampler keeps
+    running until every activator releases.
+  - **Manual, via systemStart/Stop** — for code paths that aren't
+    bracketed by a scope:
 
-When `sampling_auto_start` is enabled, system monitoring runs for the entire session.
+    ```cpp
+    gpufl::systemStart("training_phase");
+    // ... GPU work ...
+    gpufl::systemStop("training_phase");
+    ```
+
+Both mechanisms share a single ref-counted activation, so overlapping
+scopes and manual calls combine correctly — the sampler runs while any
+one of them is active.
 
 ## Profiling Engines (NVIDIA)
 

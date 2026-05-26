@@ -52,7 +52,7 @@ for deployment details.
 int main() {
     gpufl::InitOptions opts;
     opts.app_name = "my_app";
-    opts.sampling_auto_start = true;
+    opts.continuous_system_sampling = true;
     gpufl::init(opts);
 
     // ...your existing CUDA/HIP code, unchanged...
@@ -175,7 +175,7 @@ for the full mental model and a decision table.
 int main() {
     gpufl::InitOptions opts;
     opts.app_name = "my_app";
-    opts.sampling_auto_start = true;
+    opts.continuous_system_sampling = true;
     opts.system_sample_rate_ms = 50;
     gpufl::init(opts);
 

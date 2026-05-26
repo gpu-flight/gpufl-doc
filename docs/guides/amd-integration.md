@@ -55,7 +55,7 @@ __global__ void scaleKernel(int* data, int scale, int n) {
 int main() {
     gpufl::InitOptions opts;
     opts.app_name = "hip_demo";
-    opts.sampling_auto_start = true;
+    opts.continuous_system_sampling = true;
     opts.system_sample_rate_ms = 50;
     opts.enable_kernel_details = true;
     gpufl::init(opts);

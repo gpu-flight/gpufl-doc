@@ -41,7 +41,7 @@ struct InitOptions {
     // ── Sampling ────────────────────────────────────────────────────
     int          system_sample_rate_ms        = 0;      // 0 = disabled; ~50–100 typical
     int          kernel_sample_rate_ms        = 0;      // DEPRECATED (1.0.1) — no longer has any effect
-    bool         sampling_auto_start          = false;
+    bool         continuous_system_sampling   = false;   // renamed from sampling_auto_start
 
     // ── Profiling engine ────────────────────────────────────────────
     BackendKind     backend           = BackendKind::Auto;
@@ -96,7 +96,7 @@ void generateReport(const std::string& output_path = "");
 |---|---|---|
 | `system_sample_rate_ms` | `0` | `0` = disabled. ~50–100 ms typical for monitoring. |
 | `kernel_sample_rate_ms` | `0` | **Deprecated (1.0.1) — has no effect.** It previously throttled kernel activity-record processing, but that corrupted kernel GPU-time totals (durations were over-counted on host-bound workloads), so it was disabled. All kernel activity records are now always captured. Still accepted (won't error) for backward compatibility; will be removed in a future major release. |
-| `sampling_auto_start` | `false` | Start sampling immediately on init vs. waiting for `systemStart()`. |
+| `continuous_system_sampling` | `false` | Policy for the system-metric sampler. <br>**`true`** — sample continuously from `init()` to `shutdown()` regardless of scopes. Use for fleet monitoring / dashboards / any always-on use case. <br>**`false`** — sampler is idle by default and activates only while inside a `GFL_SCOPE` region (auto-bracketing) or between explicit `systemStart()` / `systemStop()` calls. Outside those windows zero system-metric events are emitted. <br>Renamed from `sampling_auto_start` in 1.0.4. The old kwarg is still accepted from Python with a `DeprecationWarning`; C++ callers must use the new name. |
 
 **Profiling engine**
 
@@ -224,7 +224,7 @@ import gpufl as gfl
 # Function-style init — every InitOptions field is a kwarg.
 gfl.init(
     app_name="my_app",
-    sampling_auto_start=True,
+    continuous_system_sampling=True,
     system_sample_rate_ms=50,
     backend=gfl.BackendKind.Auto,
     profiling_engine=gfl.ProfilingEngine.PcSampling,
