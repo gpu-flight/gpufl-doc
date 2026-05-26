@@ -143,6 +143,50 @@ Exit codes:
 Env vars `GPUFL_BACKEND_URL` and `GPUFL_API_KEY` are accepted in place
 of the flags.
 
+#### Session selection
+
+A log directory may contain more than one session if the same
+`log_path` was reused across runs. Three modes select which:
+
+| Invocation | What gets uploaded |
+|---|---|
+| `gpufl upload <path>` *(no flags)* | **The latest session only** — finds every `job_start` in the files, picks the one with the highest `ts_ns`, uploads only that. This is the default because the typical workflow is "I just ran a thing, ship it." |
+| `gpufl upload <path> --session-id <uuid>` | Only that session. Errors if not present in any file. |
+| `gpufl upload <path> --all-sessions` | Every session in the directory, oldest first. Per-session lifecycle ordering — each session's `job_start → batches → shutdown` block ships intact before the next one starts. |
+
+`--session-id` and `--all-sessions` are mutually exclusive.
+
+#### Refusing accidental re-uploads (`--force`)
+
+The cursor file (`<logdir>/.gpufl-upload-cursor.json`) records which
+sessions completed a successful upload. By default:
+
+- **Default / `--session-id` mode**: refuses to re-upload a completed
+  session. Exits with code 2 and a message like
+  `Session 7f3a... was already uploaded on 2026-05-26T15:30:00Z (1234 events). Pass force=true (CLI: --force) to re-upload.`
+- **`--all-sessions` mode**: silently skips completed sessions and
+  uploads only the pending ones. Useful for backfilling a half-finished
+  upload — re-run and it picks up where it left off.
+
+Pass `--force` to override both behaviors and ship every selected
+session regardless of the cursor.
+
+```bash
+# Re-upload a session you've already shipped
+gpufl upload /tmp/runs/train --session-id 7f3a... --force
+
+# Force re-upload of every session in the directory
+gpufl upload /tmp/runs/train --all-sessions --force
+```
+
+To force a fully fresh upload from scratch, delete the cursor file
+instead of using `--force`:
+
+```bash
+rm /tmp/runs/.gpufl-upload-cursor.json
+gpufl upload /tmp/runs/train
+```
+
 ### What gets uploaded
 
 For a session writing to `/tmp/runs/train`, the file layout on disk is:
