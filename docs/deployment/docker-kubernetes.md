@@ -17,18 +17,28 @@ you're integrating from scratch, see the
 ## Environment Variables
 
 In containers, `gpufl::init()` reads its config from `GPUFL_*` env
-vars. For live upload, three are required:
+vars. To enable upload to the backend, two are required:
 
 | Variable | Purpose |
 |----------|---------|
 | `GPUFL_BACKEND_URL` | Backend host (e.g. `https://api.gpuflight.com`). Host-only. |
 | `GPUFL_API_KEY` | Bearer token. |
-| `GPUFL_REMOTE_UPLOAD` | Set to `1` to attach `HttpLogSink`. |
+
+Upload itself is a separate post-shutdown step — see
+[Sending data to the dashboard](../getting-started/sending-data) for
+the full guide. In containerized workloads, the recommended pattern is
+either:
+
+- The app calls `gpufl.upload_logs(...)` (Python) or
+  `gpufl::uploadLogs(opts)` (C++) before exiting, OR
+- A sidecar runs the `gpufl-agent` JVM service against the same log
+  directory and uploads continuously, OR
+- An init container / lifecycle hook runs `gpufl upload <log_path>`
+  after the main workload finishes.
 
 Common optional vars: `GPUFL_API_PATH` (reverse-proxy mounts),
-`GPUFL_CONFIG_NAME` (remote-config fetch), `GPUFL_PROFILING_ENGINE`
-(override engine). Full list and precedence rules:
-[Environment variable overrides](../api-reference#env-var-overrides).
+`GPUFL_PROFILING_ENGINE` (override engine). Full list and precedence
+rules: [Environment variable overrides](../api-reference#env-var-overrides).
 
 ## Docker
 
@@ -42,15 +52,19 @@ It pins to a tagged client release and passes the CMake flags
 for reliable NVML detection inside `pip`'s isolated build env.
 :::
 
-### Basic Usage — direct HTTP upload
+### Basic usage
 
 ```bash
 docker run --gpus all \
   -e GPUFL_BACKEND_URL=https://api.gpuflight.com \
   -e GPUFL_API_KEY=gpfl_xxxxx \
-  -e GPUFL_REMOTE_UPLOAD=1 \
   my-training-image:latest
 ```
+
+Your app reads the env vars at `gpufl.init(...)` time and stores them
+on InitOptions; whatever upload step it runs (typically inside
+`gpufl.session()` or an explicit `gpufl.upload_logs(...)` call before
+exit) reads them back to talk to the backend.
 
 ### Docker Compose
 
@@ -68,26 +82,22 @@ services:
     environment:
       - GPUFL_BACKEND_URL=https://api.gpuflight.com
       - GPUFL_API_KEY=gpfl_xxxxx
-      - GPUFL_REMOTE_UPLOAD=1
 ```
 
 ### Toggling upload on / off
 
-Flip `GPUFL_REMOTE_UPLOAD` to control whether telemetry leaves the
-container. File logs (NDJSON) are always written either way:
-
-```yaml
-environment:
-  - GPUFL_REMOTE_UPLOAD=0   # File logs only; no live upload
-```
+Unset `GPUFL_API_KEY` (or remove the env var entirely) to keep the
+session fully offline — file logs are still written, and you can ship
+them later with `gpufl upload <log_path>` once you've got credentials.
 
 ## Kubernetes
 
-### Single Pod (direct HTTP upload)
+### Single Pod (app uploads itself)
 
-The simplest pattern: each instrumented Pod uploads telemetry
-directly via `HttpLogSink`. Good for development clusters and
-small deployments.
+The simplest pattern: each instrumented Pod runs its workload, then
+calls `gpufl.upload_logs(...)` / `gpufl::uploadLogs()` before exiting.
+No sidecar required. Good for development clusters and small
+deployments.
 
 ```yaml
 apiVersion: v1
@@ -101,8 +111,6 @@ spec:
       env:
         - name: GPUFL_BACKEND_URL
           value: "https://api.gpuflight.com"
-        - name: GPUFL_REMOTE_UPLOAD
-          value: "1"
         - name: GPUFL_API_KEY
           valueFrom:
             secretKeyRef:
@@ -125,10 +133,10 @@ kubectl create secret generic gpuflight-secret \
 Run [`gpufl-agent`](https://github.com/gpu-flight/gpufl-agent)
 once per GPU node. It's a JVM (Java 25) sidecar that tails
 NDJSON files written by every instrumented Pod on the node and
-publishes them via HTTP or Kafka. When using the agent, **do
-not** set `GPUFL_REMOTE_UPLOAD` on the application Pods — leave
-that off so they only write file logs, and let the agent handle
-delivery.
+publishes them via HTTP or Kafka. When using the agent, **leave
+out** any in-process `gpufl.upload_logs()` calls in the
+application Pods — let the agent handle delivery so you don't
+double-upload the same files.
 
 ```yaml
 apiVersion: apps/v1
@@ -192,8 +200,9 @@ spec:
 
 Then on every application Pod, mount the same `hostPath` and
 point `gpufl::InitOptions::log_path` into it (e.g.
-`/var/log/gpuflight/${HOSTNAME}.system.log`). Don't set
-`GPUFL_REMOTE_UPLOAD` — file writes are all the agent needs.
+`/var/log/gpuflight/${HOSTNAME}.system.log`). The Pods don't need
+`GPUFL_API_KEY` — file writes are all the agent needs; the agent
+authenticates and uploads on their behalf.
 
 ### Which pattern to pick
 

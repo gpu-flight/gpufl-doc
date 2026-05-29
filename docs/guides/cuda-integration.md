@@ -46,7 +46,7 @@ __global__ void matmul(const float* A, const float* B, float* C, int N) {
 int main() {
     gpufl::InitOptions opts;
     opts.app_name = "matmul_demo";
-    opts.sampling_auto_start = true;
+    opts.continuous_system_sampling = true;
     opts.system_sample_rate_ms = 50;
     opts.enable_kernel_details = true;
     opts.profiling_engine = gpufl::ProfilingEngine::SassMetrics;

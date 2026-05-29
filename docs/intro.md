@@ -52,7 +52,7 @@ for deployment details.
 int main() {
     gpufl::InitOptions opts;
     opts.app_name = "my_app";
-    opts.sampling_auto_start = true;
+    opts.continuous_system_sampling = true;
     gpufl::init(opts);
 
     // ...your existing CUDA/HIP code, unchanged...
@@ -102,22 +102,23 @@ See the [Scope Profiling Guide](guides/scope-profiling) for details.
 
 ## How data reaches the dashboard
 
-`gpufl-client` always writes telemetry to a local NDJSON file.
-Two optional paths get that data to the cloud:
+`gpufl-client` always writes telemetry to local NDJSON files during a
+session. Two paths ship those files to the backend, and they share the
+same on-disk source of truth:
 
-- **Direct HTTP upload (in-process).** Set
-  `opts.remote_upload = true` (or `GPUFL_REMOTE_UPLOAD=1`) and
-  `HttpLogSink` runs in a background thread inside your
-  application — every event is POSTed live. Best for local dev,
-  SSH sessions, and Jupyter notebooks.
-- **Agent daemon (`gpufl-monitor`).** Run the separate
-  `gpufl-monitor` binary on the host; it tails NDJSON files and
-  uploads compressed batches (10–15× smaller than per-event
-  uploads). Best for production, multi-process workloads, and
-  bandwidth-conscious deployments.
+- **In-process deferred upload.** After `gpufl::shutdown()` returns,
+  call `gpufl::uploadLogs(opts)` in C++ or `gpufl.upload_logs(...)` in
+  Python — or wrap the whole thing in `with gpufl.session(...)` and the
+  Python side runs the upload automatically on exit. All HTTP runs
+  post-shutdown, so network failures cannot affect the GPU workload's
+  exit code. Best for local dev, SSH sessions, and Jupyter notebooks.
+- **Agent daemon (`gpufl-agent`).** Run the standalone JVM service on
+  the host; it tails NDJSON files and uploads compressed batches
+  (10–15× smaller than per-event uploads). Best for production fleets
+  where many GPUs are emitting concurrently.
 
 Both paths can coexist. See [Sending data to the dashboard](getting-started/sending-data)
-for the full mental model and a decision table.
+for the full guide.
 
 ## Key Features
 
@@ -175,7 +176,7 @@ for the full mental model and a decision table.
 int main() {
     gpufl::InitOptions opts;
     opts.app_name = "my_app";
-    opts.sampling_auto_start = true;
+    opts.continuous_system_sampling = true;
     opts.system_sample_rate_ms = 50;
     gpufl::init(opts);
 

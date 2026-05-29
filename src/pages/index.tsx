@@ -38,15 +38,22 @@ const DIRECT_HTTP_SNIPPET = `#include "gpufl/gpufl.hpp"
 
 int main() {
     gpufl::InitOptions opts;
-    opts.app_name     = "my_app";
-    opts.backend_url  = "https://api.gpuflight.com";
-    opts.api_key      = std::getenv("GPUFL_API_KEY");
-    opts.remote_upload = true;     // attach HttpLogSink
+    opts.app_name    = "my_app";
+    opts.log_path    = "/tmp/runs/my_app";
+    opts.backend_url = "https://api.gpuflight.com";
+    opts.api_key     = std::getenv("GPUFL_API_KEY");
     gpufl::init(opts);
 
     // ... your CUDA / HIP work ...
 
     gpufl::shutdown();
+
+    // Deferred upload — post-shutdown, never during the workload.
+    gpufl::UploadOptions uopts;
+    uopts.log_path    = opts.log_path;
+    uopts.backend_url = opts.backend_url;
+    uopts.api_key     = opts.api_key;
+    gpufl::uploadLogs(uopts);
 }`;
 
 const AGENT_APP_SNIPPET = `#include "gpufl/gpufl.hpp"

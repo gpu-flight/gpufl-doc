@@ -96,7 +96,7 @@ import gpufl
 gpufl.init(
     app_name="my_training",
     log_path="./logs",
-    sampling_auto_start=True,
+    continuous_system_sampling=True,
     system_sample_rate_ms=50,
     profiling_engine=gpufl.ProfilingEngine.PcSampling,
 )
