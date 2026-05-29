@@ -19,15 +19,20 @@ NDJSON files as source of truth.
 Both paths can coexist on the same NDJSON files — they cooperate via
 the cursor file in the log directory.
 
-:::note Live streaming was removed
+:::note Live streaming is removed; the kwarg name is deprecated
 Previous releases shipped an `HttpLogSink` that POSTed every NDJSON
-line live during a session. That mechanism was retired because (a)
-network errors during the session could affect the host workload's
-exit code, (b) per-event HTTP added measurable jitter to PyTorch
-training runs, and (c) the deferred path post-shutdown is functionally
-equivalent for every use case we shipped. Customers who set
-`remote_upload=True` from Python continue to work for one release via
-an `atexit` shim that calls the new upload at interpreter exit.
+line live during a session. That mechanism is gone in v1.1 — network
+errors during the session could leak into the GPU job's exit code,
+and per-event HTTP added measurable jitter to PyTorch training runs.
+
+The `remote_upload=True` kwarg still works in v1.1 as a **deprecation
+shim** — it emits a `DeprecationWarning` and routes through an
+`atexit` handler that calls the new deferred upload at interpreter
+exit, so existing customer code keeps working unchanged. The flag,
+plus `backend_url` and `api_key` on `InitOptions`, are scheduled for
+removal in v1.2 — at which point creds will live only on
+`UploadOptions`. See [Migration](#migration-from-remote_uploadtrue)
+below for the recommended new shape.
 :::
 
 ## Path 1: In-process deferred upload
@@ -262,46 +267,83 @@ later (or vice versa).
 
 ## Migration from `remote_upload=True`
 
-Customers who previously enabled live streaming with
-`remote_upload=True` (Python) or `opts.remote_upload = true` (C++)
-should migrate to one of the deferred forms above.
+`remote_upload` is deprecated in v1.1 and will be removed in v1.2.
+The old form still works for one release — there's no rush to update
+— but new code should use the deferred forms below.
 
-### Python — one release of grace
+### Python — still works in v1.1, removed in v1.2
 
 ```python
-# Old (deprecated, but still works for one release):
+# Old (still works, emits DeprecationWarning)
 gpufl.init(app_name="x", backend_url="...", api_key="...",
            remote_upload=True)
 # ... work ...
 gpufl.shutdown()
-# (atexit handler runs upload_logs at interpreter exit)
+# upload_logs() runs at interpreter exit via the atexit shim.
 ```
 
-You'll see a `DeprecationWarning` on `init()` and an `atexit`-scheduled
-`upload_logs()` will run when the interpreter exits. To remove the
-warning and gain explicit control over when upload happens, switch to:
+Recommended replacements:
 
 ```python
-# New, recommended:
-with gpufl.session(app_name="x", backend_url="...", api_key="..."):
+# Option A — orchestrated (recommended for notebooks / scripts)
+with gpufl.session(app_name="x",
+                   backend_url="https://api.gpuflight.com",
+                   api_key="gpfl_xxxxx"):
     # ... work ...
-# Upload runs at __exit__, explicitly.
+# On __exit__: shutdown() then upload_logs() — automatic.
+
+# Option B — explicit (control over timing + result inspection)
+gpufl.init(app_name="x", backend_url="...", api_key="...")
+# ... work ...
+gpufl.shutdown()
+result = gpufl.upload_logs(
+    log_path="x", backend_url="...", api_key="...",
+)
 ```
 
-### C++ — hard rename
-
-`opts.remote_upload = true` no longer attaches an HTTP sink at the C++
-level (it's a no-op for one release, then removed). Update C++ code to:
+### C++ — auto-upload at shutdown in v1.1, removed in v1.2
 
 ```cpp
+// Old — still compiles, logs a deprecation message at init()
+opts.remote_upload = true;
+gpufl::init(opts);
+// ... work ...
+gpufl::shutdown();
+// gpufl::shutdown() now auto-invokes gpufl::uploadLogs() with the
+// InitOptions creds at the end of teardown. Expect shutdown to block
+// for seconds-to-minutes proportional to log volume.
+```
+
+```cpp
+// New (drop the flag, control timing yourself)
+gpufl::init(opts);
+// ... work ...
 gpufl::shutdown();
 
 gpufl::UploadOptions uopts;
 uopts.log_path    = opts.log_path;
 uopts.backend_url = opts.backend_url;
 uopts.api_key     = opts.api_key;
-gpufl::uploadLogs(uopts);
+const auto r = gpufl::uploadLogs(uopts);
+if (!r.success) for (const auto& w : r.warnings) std::cerr << w << "\n";
 ```
+
+The new form gives you the `UploadResult` to inspect (warnings,
+event count, elapsed time) and lets you decide whether the upload
+runs synchronously, in a background thread, or not at all.
+
+The `GPUFL_REMOTE_UPLOAD` env var is still read in v1.1 and routes
+through the Python atexit shim. It's removed in v1.2 along with the
+field — start dropping it from container manifests / start scripts.
+
+### v1.2 will go further
+
+`backend_url` and `api_key` on `InitOptions` are also scheduled for
+removal in v1.2. Long-term, all backend creds move to `UploadOptions`
+exclusively, and `gpufl::init()` stops dealing with network config.
+Future-proof your code by passing creds directly to `uploadLogs()`
+even today — the InitOptions fields stay functional until v1.2 but
+won't be the canonical home.
 
 The `backend_url` / `api_key` fields on `InitOptions` stay — they're
 the canonical place to store the credentials and `uploadLogs` can

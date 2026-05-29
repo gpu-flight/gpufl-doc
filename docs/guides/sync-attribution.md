@@ -42,11 +42,21 @@ opts.app_name = "my_app";
 opts.enable_synchronization = true;   // capture cudaStream/Device/EventSynchronize
 opts.enable_stack_trace     = true;   // capture CPU stacks at sync points
 
-opts.backend_url   = "https://api.gpuflight.com";
-opts.api_key       = std::getenv("GPUFL_API_KEY");
-opts.remote_upload = true;
+opts.backend_url = "https://api.gpuflight.com";
+opts.api_key     = std::getenv("GPUFL_API_KEY");
 
 gpufl::init(opts);
+
+// ... run your workload, exit scopes, etc. ...
+
+gpufl::shutdown();
+
+// Deferred upload — runs post-shutdown, never during the workload.
+gpufl::UploadOptions uopts;
+uopts.log_path    = opts.log_path;
+uopts.backend_url = opts.backend_url;
+uopts.api_key     = opts.api_key;
+gpufl::uploadLogs(uopts);
 ```
 
 That's it. Run your workload. The dashboard's **Insights** panel

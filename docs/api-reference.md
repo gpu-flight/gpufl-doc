@@ -27,7 +27,7 @@ struct InitOptions {
     std::string  api_key     = "";               // sent as `Authorization: Bearer <key>`
     std::string  api_path    = "";               // empty → "/api/v1"; override for proxy mounts
     std::string  config_name = "";               // remote config to fetch on init
-    bool         remote_upload = false;          // attach HttpLogSink for live in-process upload
+    bool         remote_upload = false;          // DEPRECATED v1.1, removed v1.2 (no-op; see api-reference)
 
     // ── What to capture ─────────────────────────────────────────────
     bool         enable_kernel_details        = false;
@@ -76,7 +76,7 @@ void generateReport(const std::string& output_path = "");
 | `api_key` | `string` | `""` | Workspace API key (`gpfl_xxx`). |
 | `api_path` | `string` | `""` | Empty resolves to `/api/v1`. Override for reverse-proxy mounts. |
 | `config_name` | `string` | `""` | When set, fetches a named remote config before init. |
-| `remote_upload` | `bool` | `false` | **Required** to attach `HttpLogSink` for live upload. |
+| `remote_upload` | `bool` | `false` | **DEPRECATED in v1.1; removed in v1.2.** Live HTTP streaming was removed. The flag stays as a one-release deprecation shim: Python customers see a `DeprecationWarning` and get an `atexit` handler that calls `upload_logs()` at interpreter exit; C++ customers see a deprecation log line at init and need to call `gpufl::uploadLogs()` explicitly themselves. New code should use `gpufl::uploadLogs(opts)` (C++) or `gpufl.upload_logs(...)` (Python) directly, or `with gpufl.session(backend_url=..., api_key=...):` to orchestrate it. |
 
 **What to capture**
 
@@ -122,7 +122,7 @@ explicitly in code; env vars apply when the field is left at default.
 | `GPUFL_API_KEY` | `api_key` |
 | `GPUFL_API_PATH` | `api_path` |
 | `GPUFL_CONFIG_NAME` | `config_name` |
-| `GPUFL_REMOTE_UPLOAD` | `remote_upload` (any non-empty, non-`0`/`false` value enables) |
+| `GPUFL_REMOTE_UPLOAD` | `remote_upload` — **DEPRECATED v1.1, removed v1.2.** Still read in v1.1 (routes through the Python atexit shim). Drop from container manifests when convenient. |
 | `GPUFL_PROFILING_ENGINE` | `profiling_engine` |
 
 ### Scoping
