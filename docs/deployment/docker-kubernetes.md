@@ -239,16 +239,17 @@ No `import gpuflight` in your Python code. No framework integrations to configur
 
 ## Overhead
 
-GPUFlight's **Continuous mode** is designed for always-on deployment. **Deep mode** is the opposite, intended for one-off kernel investigation during development and never enabled fleet-wide.
+GPUFlight's **`PcSampling`** engine is designed for always-on deployment. **`Deep`** is the opposite, intended for one-off kernel investigation during development and never enabled fleet-wide.
 
-| Mode | Enum value | Typical overhead |
-|------|-----------|-----------------|
-| Monitoring only | `None` | Minimal |
-| **Continuous** (production-safe) | `PcSampling` | Low; safe to run 24/7 |
-| Range | `RangeProfiler` | Moderate, per scope |
-| **Deep** (development only) | `PcSamplingWithSass` | **Significant kernel slowdown while the scope is active** |
+| Engine | Typical overhead |
+|------|-----------------|
+| `Monitor` (default) | Minimal — no CUPTI |
+| `Trace` | Low — kernel timing, no sampling |
+| `PcSampling` (production-safe) | Low; safe to run 24/7 |
+| `RangeProfiler` | Moderate, per scope |
+| `Deep` (development only) | **Significant kernel slowdown while the scope is active** |
 
-The Deep-mode slowdown is intrinsic to SASS-level instrumentation. The same physics applies to any tool that collects per-instruction execution counts, including NVIDIA Nsight Compute (which addresses it with kernel replay, paying the cost as additional passes instead of slower passes). Use Deep mode for the specific kernel you are investigating, not for production fleet observability.
+The `Deep` slowdown is intrinsic to SASS-level instrumentation. The same physics applies to any tool that collects per-instruction execution counts, including NVIDIA Nsight Compute (which addresses it with kernel replay, paying the cost as additional passes instead of slower passes). Use `Deep` for the specific kernel you are investigating, not for production fleet observability.
 
 Actual numbers vary by hardware generation, driver version, kernel characteristics, and sampling configuration. Benchmark your own workload before committing to a deployment mode.
 

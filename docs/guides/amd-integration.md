@@ -7,14 +7,14 @@ sidebar_position: 2
 GPUFlight supports AMD GPUs via ROCm, including HIP kernel tracing, system telemetry, occupancy analysis, and ISA disassembly.
 
 :::warning Profiling engines: AMD vs. NVIDIA
-On AMD today, only `ProfilingEngine::None` (system monitoring) and
-the dispatch-counter path are supported. The NVIDIA-specific
-engines — `PcSampling`, `SassMetrics`, `RangeProfiler`,
-`PcSamplingWithSass` — are not yet implemented on the ROCm
-backend. Setting them on AMD silently falls back to `None` after
-a startup warning. AMD parity is on the roadmap; for now, AMD
-users get kernel timing, occupancy, ISA disassembly, and system
-telemetry, but **not** PC-level stall sampling.
+On AMD today, only `ProfilingEngine::Monitor` / `Trace` (system
+monitoring + kernel timing) and the dispatch-counter path are
+supported. The NVIDIA-specific engines — `PcSampling`,
+`SassMetrics`, `RangeProfiler`, `Deep` — are not yet implemented on
+the ROCm backend. Setting them on AMD falls back to the
+dispatch-counter path after a startup warning. AMD parity is on the
+roadmap; for now, AMD users get kernel timing, occupancy, ISA
+disassembly, and system telemetry, but **not** PC-level stall sampling.
 :::
 
 ## Prerequisites

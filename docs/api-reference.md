@@ -161,40 +161,40 @@ enum class BackendKind { Auto, Nvidia, Amd, None };
 
 ### Profiling engines {#profiling-engines-nvidia}
 
-GPUFlight ships two recommended modes, **Continuous** for production and **Deep**
-for development. A third **Range** mode is available for hardware-counter use
-cases. The C++ enum still uses the historical names today; the user-facing mode
-names will become the canonical enum values in a future release (with the old
-names kept as deprecated aliases).
+Profiling depth is one setting, `profiling_engine`, chosen from a six-level
+ladder. The default is **`Monitor`** (health metrics only, no CUPTI). Step up
+the ladder for more detail at higher cost; the production-safe sweet spot is
+**`PcSampling`**, and **`Deep`** is the full development-time profile.
 
 :::note Modes are additive
-The mode you pick is layered **on top of** a base set of data that the SDK
-always captures when linked in-process (kernel events with timing, grid/block
-dimensions, registers, theoretical occupancy, memcpy events, NVML system
-metrics, and host metrics). The mode controls what additional profiling data
-is collected, not whether the base layer runs. Picking `None` still gives you
-the full base layer; it just disables the optional PC sampling / SASS / Range
-data on top.
+Each level layers on top of the one below. From `Trace` upward the SDK
+captures the full activity trace — kernel events (timing, grid/block
+dimensions, registers, theoretical occupancy), memcpy/memset, and sync
+events — plus NVML system metrics and host metrics; the higher levels add
+sampling data on top. `Monitor` is the exception: it runs **no CUPTI at
+all**, so it emits only NVML/host telemetry (and is therefore the
+lowest-overhead, safest mode).
 :::
 
 ```cpp
 enum class ProfilingEngine {
-    None,                // Base layer only. No additional profiling data.
-    PcSampling,          // Continuous mode. PC-level stall sampling.
-    SassMetrics,         // Per-instruction metrics (subset of Deep mode).
-    RangeProfiler,       // Range mode. Hardware perf counters via Perfworks.
-    PcSamplingWithSass,  // Deep mode. PC sampling + SASS instrumentation.
+    Monitor,        // Health metrics only — no CUPTI. The default.
+    Trace,          // + activity trace: kernels, memcpy, sync (no sampling)
+    PcSampling,     // + PC-level stall-reason sampling
+    SassMetrics,    // + per-instruction SASS counters
+    RangeProfiler,  // + hardware throughput counters (Perfworks)
+    Deep,           // PcSampling + SassMetrics in one run
 };
 ```
 
-| Mode | Enum value | NVIDIA | AMD | Overhead | What it adds on top of the base layer |
-|---|---|---|---|---|---|
-| Base layer (always on with SDK) | n/a | ✓ | ✓ | Minimal | Kernel events (timing, grid/block, registers, theoretical occupancy), memcpy events, NVML system metrics, host metrics |
-| **Continuous** (recommended default) | `PcSampling` | ✓ | ✗ | Low; production-safe | Stall reasons per PC, hot-PC distribution, function name and source/line correlation per sample |
-| **Deep** | `PcSamplingWithSass` | ✓ | ✗ | Significant kernel slowdown while the scope is active | Everything Continuous adds, plus per-instruction execution counts, memory coalescing efficiency, divergence analysis |
-| **Range** | `RangeProfiler` | ✓ | ✗ | Moderate, per scope | Hardware counter exports per scope (e.g. achieved occupancy, DRAM throughput). Niche. |
-| (legacy) | `SassMetrics` | ✓ | ✗ | Same overhead class as Deep | Subset of Deep. Kept for backward compatibility; new code should use `PcSamplingWithSass`. |
-| Monitoring only | `None` | ✓ | ✓ | Minimal | Nothing on top of the base layer. |
+| Mode | NVIDIA | AMD | Overhead | What it captures |
+|---|---|---|---|---|
+| `Monitor` (default) | ✓ | ✓ | Minimal | NVML system metrics + host metrics only. No CUPTI. |
+| `Trace` | ✓ | ✓ | Low | + activity trace: kernel events (timing, grid/block, registers, occupancy), memcpy/memset, sync |
+| `PcSampling` (production-safe) | ✓ | ✗ | Low | + stall reasons per PC, hot-PC distribution, function/source-line correlation per sample |
+| `SassMetrics` | ✓ | ✗ | Significant | + per-instruction execution counts, memory coalescing efficiency, divergence analysis |
+| `RangeProfiler` | ✓ | ✗ | Moderate, per scope | + hardware counter exports per scope (achieved occupancy, DRAM throughput). Niche. |
+| `Deep` | ✓ | ✗ | Significant kernel slowdown | `PcSampling` + `SassMetrics` together — the deepest single-run profile |
 
 :::tip Deep-mode overhead is intrinsic
 The Deep-mode kernel slowdown comes from instrumenting every executed SASS
@@ -205,10 +205,10 @@ the specific kernel you are investigating, not for fleet-wide deployment.
 :::
 
 :::note AMD users
-On AMD today only `None` (monitoring) and the dispatch-counter
-path are supported. `PcSampling`, `SassMetrics`, and `RangeProfiler`
-are NVIDIA-only — setting them on an AMD backend silently falls
-back to `None` after a startup warning. AMD parity is on the
+On AMD today only `Monitor` / `Trace` and the dispatch-counter path
+are supported. `PcSampling`, `SassMetrics`, `RangeProfiler`, and
+`Deep` are NVIDIA-only — on an AMD backend they fall back to the
+dispatch-counter path after a startup warning. AMD parity is on the
 roadmap.
 :::
 
@@ -240,25 +240,24 @@ gfl.system_stop("sampling")
 gfl.shutdown()
 ```
 
-#### The `None` enum value — use the `None_` alias in Python
+#### `BackendKind.None_` — the Python keyword workaround
 
-Both `ProfilingEngine` and `BackendKind` have a value literally named
-`None`. Because `None` is a reserved keyword in Python, you cannot
-write `gfl.ProfilingEngine.None` — that's a `SyntaxError`. The
-bindings expose a clean trailing-underscore alias:
+`BackendKind` has a value literally named `None`. Because `None` is a
+reserved keyword in Python, you cannot write `gfl.BackendKind.None` —
+that's a `SyntaxError`. The bindings expose a trailing-underscore alias:
 
 ```python
-# "No profiling engine" — monitoring only.
-gfl.init(app_name="m", profiling_engine=gfl.ProfilingEngine.None_)
-
 # "No backend" — for stub / test sessions.
 gfl.init(app_name="m", backend=gfl.BackendKind.None_)
 ```
 
-The alias points at exactly the same enum value as the C++
-`ProfilingEngine::None` / `BackendKind::None` constants; it's purely
-a Python-side naming convenience (mirrors the `class_` / `type_`
-pattern pybind11 uses elsewhere).
+The alias points at the same value as the C++ `BackendKind::None`
+constant (mirrors the `class_` / `type_` pattern pybind11 uses
+elsewhere).
+
+`ProfilingEngine` needs no such alias — its lowest level is
+`Monitor` (telemetry only, no CUPTI), a normal identifier you write
+directly: `gfl.ProfilingEngine.Monitor`.
 
 #### Migrating from v0.1.0 / v0.1.1
 
@@ -269,8 +268,8 @@ unexpected keyword argument …`, swap as follows:
 
 | Old kwarg | New equivalent |
 |---|---|
-| `enable_profiling=False` | `profiling_engine=gpufl.ProfilingEngine.None_` |
-| `enable_profiling=True` (default) | nothing — `profiling_engine` already defaults to `PcSampling` |
+| `enable_profiling=False` | `profiling_engine=gpufl.ProfilingEngine.Monitor` |
+| `enable_profiling=True` (default) | `profiling_engine=gpufl.ProfilingEngine.PcSampling` (the default is now `Monitor`, so set this explicitly) |
 | `enable_perf_scope=True` | `profiling_engine=gpufl.ProfilingEngine.RangeProfiler` |
 | `remote_config="https://…"` | `backend_url="https://…"` (same meaning) |
 

@@ -92,7 +92,8 @@ whether your code is C++ or Python.
 import gpufl
 
 # Initialize once at app startup. profiling_engine selects what kind
-# of in-scope sampling runs; pick None_ for monitor-only sessions.
+# of in-scope sampling runs; pick Monitor for telemetry-only sessions
+# (no CUPTI) or Trace for kernel timing without sampling.
 gpufl.init(
     app_name="my_training",
     log_path="./logs",
