@@ -6,12 +6,12 @@ sidebar_position: 1
 
 **GPUFlight** is a GPU profiler and monitoring system that scales with your kernel from development to production. Built on CUPTI (NVIDIA) and rocprofiler-sdk (AMD), it captures kernel telemetry, SASS-level instruction analysis, and system metrics, all streamed to a cloud dashboard.
 
-GPUFlight ships two modes:
+Two engines anchor the workflow:
 
-- **Deep mode** for development. Per-instruction SASS metrics, memory coalescing analysis, divergence analysis, full source correlation. Use it when you are writing or tuning a specific kernel.
-- **Continuous mode** for production. Low-overhead PC sampling, safe to leave on across a fleet 24/7. Use it for always-on observability, regression detection, and long-tail outlier hunting.
+- **`Deep`** for development. Per-instruction SASS metrics, memory coalescing analysis, divergence analysis, full source correlation. Use it when you are writing or tuning a specific kernel.
+- **`PcSampling`** for production. Low-overhead stall-reason sampling, safe to leave on across a fleet 24/7. Use it for always-on observability, regression detection, and long-tail outlier hunting.
 
-The mode is a deployment-time switch, not a different tool. The same SDK, same scopes, same dashboard, same data model work on both sides. Set `GPUFL_PROFILING_ENGINE=Continuous` in your production environment and the same binary that ran in Deep mode locally drops to Continuous on the fleet. No rebuild.
+The engine is a deployment-time switch, not a different tool. The same SDK, same scopes, same dashboard, same data model work on both sides. Set `GPUFL_PROFILING_ENGINE=PcSampling` in your production environment and the same binary that ran `Deep` locally drops to PC sampling on the fleet. No rebuild. (And `Monitor` — the default — is lighter still: GPU/host health metrics with no CUPTI at all.)
 
 ## Three Levels of Integration
 
@@ -137,7 +137,7 @@ for the full guide.
 ### Production-Ready Architecture
 - Lock-free ring buffer for zero-contention kernel event capture
 - Background collector thread with batched output
-- Continuous mode runs at low overhead, safe for always-on deployment
+- `PcSampling` runs at low overhead, safe for always-on deployment
 - Docker and Kubernetes native deployment
 
 ### CUDA Kernel Profiling
@@ -146,10 +146,13 @@ for the full guide.
 - Limiting resource identification
 - CPU stack traces (NVIDIA)
 
-### Profiling Modes (NVIDIA)
-- **Continuous mode** (PC Sampling): Stall-reason sampling at the program counter level. Low overhead, production-safe, recommended default.
-- **Deep mode** (PC Sampling + SASS): Per-instruction execution counts, memory coalescing efficiency, divergence analysis, full source correlation. Significant kernel slowdown while the scope is active; opt-in for development investigation.
-- **Range mode** (Range Profiler): Hardware performance counters via NVIDIA PerfWorks for per-scope metric exports. Moderate per-scope overhead.
+### Profiling Engines (NVIDIA)
+- **`Monitor`** (default): GPU/host health metrics only — no CUPTI. Lowest overhead.
+- **`Trace`**: Activity trace — kernels, memcpy, sync — with timing and launch config. No sampling.
+- **`PcSampling`**: Stall-reason sampling at the program counter level. Low overhead, production-safe.
+- **`SassMetrics`**: Per-instruction execution counts, memory coalescing efficiency, divergence analysis.
+- **`RangeProfiler`**: Hardware performance counters via NVIDIA PerfWorks for per-scope metric exports. Moderate per-scope overhead.
+- **`Deep`**: `PcSampling` + `SassMetrics` together — the full development-time profile. Significant kernel slowdown while the scope is active.
 
 ### ISA Disassembly
 - **NVIDIA**: SASS disassembly via `nvdisasm`

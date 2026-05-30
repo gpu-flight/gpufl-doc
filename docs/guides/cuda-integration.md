@@ -78,13 +78,21 @@ NVIDIA GPUs support multiple profiling engines selected via
 at-a-glance comparison of overhead and use case; this section is the
 deep dive on each engine with example code.
 
-### None (Monitoring Only)
+### Monitor (the default)
 
 ```cpp
-opts.profiling_engine = gpufl::ProfilingEngine::None;
+opts.profiling_engine = gpufl::ProfilingEngine::Monitor;
 ```
 
-Captures system metrics only (utilization, temperature, power, memory) via NVML. No kernel-level data and negligible host-side overhead. Use this when you want fleet health visibility without any kernel instrumentation. For production deployments that need kernel timing and stall data, use Continuous mode (`PcSampling`) instead.
+Captures system metrics only (utilization, temperature, power, memory) via NVML — **no CUPTI at all**, so negligible overhead and no kernel-level data. This is the default. Use it for fleet health visibility without any kernel instrumentation. For kernel timing without sampling, step up to `Trace`; for stall data, use `PcSampling`.
+
+### Trace (kernel timing, no sampling)
+
+```cpp
+opts.profiling_engine = gpufl::ProfilingEngine::Trace;
+```
+
+Captures the CUPTI activity trace — every kernel (name, duration, stream, grid/block, registers, occupancy), plus memcpy/memset and sync events — but no PC sampling or SASS instrumentation. The "what ran and how long" view at low overhead.
 
 ### PC Sampling
 
@@ -120,10 +128,10 @@ Collects hardware performance counters per scope via NVIDIA PerfWorks. Provides:
 - DRAM read/write bytes
 - Tensor core active percentage
 
-### PC Sampling + SASS (Combined)
+### Deep (PC Sampling + SASS)
 
 ```cpp
-opts.profiling_engine = gpufl::ProfilingEngine::PcSamplingWithSass;
+opts.profiling_engine = gpufl::ProfilingEngine::Deep;
 ```
 
 Runs both PC sampling and SASS metrics in a single session using software lazy patching. Provides the most comprehensive instruction-level analysis.

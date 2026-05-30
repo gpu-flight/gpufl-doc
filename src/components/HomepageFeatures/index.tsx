@@ -15,7 +15,7 @@ const FeatureList: FeatureItem[] = [
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Deep mode for development, Continuous mode for production. Same SDK, same scopes, same dashboard. Switch modes with one environment variable, no rebuild. Works with any framework: PyTorch, TensorFlow, JAX, or custom CUDA.
+        Deep profiling for development, low-overhead PC sampling for production. Same SDK, same scopes, same dashboard. Switch engines with one environment variable, no rebuild. Works with any framework: PyTorch, TensorFlow, JAX, or custom CUDA.
       </>
     ),
   },
@@ -33,7 +33,7 @@ const FeatureList: FeatureItem[] = [
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        PC sampling, SASS and ISA instruction-level analysis, stall reasons, memory coalescing efficiency, and occupancy breakdown. Use Deep mode for full investigation during development; drop to Continuous mode for safe, low-overhead profiling in production. Supports NVIDIA CUDA and AMD ROCm.
+        PC sampling, SASS and ISA instruction-level analysis, stall reasons, memory coalescing efficiency, and occupancy breakdown. Use Deep for full investigation during development; drop to PC Sampling for safe, low-overhead profiling in production. Supports NVIDIA CUDA and AMD ROCm.
       </>
     ),
   },

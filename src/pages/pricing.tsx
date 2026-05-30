@@ -172,8 +172,8 @@ export default function Pricing(): ReactNode {
             </p>
             <Heading as="h4">What's the performance overhead?</Heading>
             <p>
-              Continuous mode (the production-safe default) runs at low overhead and is safe to leave on across a fleet.
-              Deep mode (development only, opt-in) instruments SASS instructions and the active kernel runs significantly slower while the measurement scope is open. That cost is intrinsic to per-instruction profiling and applies to any tool that collects this data class. Use Deep mode for the kernel you are investigating, not for fleet observability. Actual numbers vary by hardware, driver, and workload; benchmark your own application before committing to a deployment mode.
+              PC Sampling, the production-safe profiling engine, runs at low overhead and is safe to leave on across a fleet (and the default Monitor engine is lighter still — health metrics with no kernel instrumentation).
+              Deep (development only, opt-in) instruments SASS instructions and the active kernel runs significantly slower while the measurement scope is open. That cost is intrinsic to per-instruction profiling and applies to any tool that collects this data class. Use Deep for the kernel you are investigating, not for fleet observability. Actual numbers vary by hardware, driver, and workload; benchmark your own application before committing to a deployment mode.
             </p>
             <Heading as="h4">Can I self-host?</Heading>
             <p>
