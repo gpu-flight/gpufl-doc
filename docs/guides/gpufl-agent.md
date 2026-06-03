@@ -27,7 +27,7 @@ covers **how** — install, configure, and operate.
   (DigitalOcean Spaces, MinIO, Wasabi, AWS S3, etc.)
 
 For local dev, SSH sessions, and Jupyter notebooks, the
-in-process [`HttpLogSink`](../getting-started/sending-data#path-1-direct-http-in-process)
+in-process [deferred upload](../getting-started/sending-data#path-1-in-process-deferred-upload)
 is friction-free and probably what you want.
 
 ## Install
@@ -207,8 +207,8 @@ stdout on startup:
 
 ```
 [agent] Publisher: HttpPublisher
-[agent] Source: folder=/var/log/gpuflight prefix=session types=[device, scope, system]
-[agent] Discovered prefix "myapp" in /var/log/gpuflight
+[agent] Source: folder=/var/log/gpuflight types=[device, scope, system]
+[agent] Discovered session "9f3a1c2e-..." in /var/log/gpuflight
 ```
 
 If you see `❌ No log sources configured` or `❌ Unknown publisher
@@ -227,26 +227,39 @@ above when supplied.
 
 ### Sources (required — at least one)
 
-The agent reads NDJSON files written by `FileLogSink`. Files
-follow the naming pattern `{prefix}.{type}.log` where `type` is
-one of `device`, `scope`, or `system`.
-
-Two ways to configure sources:
+The agent reads the NDJSON files written by `gpufl-client`. Since
+v1.2 each run lives in its **own per-session subdirectory**:
+`<folder>/<session_id>/<channel>.log[.N.log[.gz]]`, where `<channel>`
+is one of `device`, `scope`, or `system`. The agent scans each
+watched folder every 2 seconds and auto-discovers session
+subdirectories — including ones that start after the agent boots —
+so there is no filename prefix to configure.
 
 | Flag / env | Purpose |
 |---|---|
-| `--folder=PATH` / `GPUFL_SOURCE_FOLDER` | Single folder. Pair with `--prefix=` (default `gpufl`). |
-| `--folders=P1,P2,...` / `GPUFL_SOURCE_FOLDERS` | Comma-separated list. Each folder is **auto-scanned** for any `*.{device,scope,system}.log` files; the agent infers prefixes from filenames. |
+| `--folder=PATH` / `GPUFL_SOURCE_FOLDER` | A single watched folder containing session subdirectories. |
+| `--folders=P1,P2,...` / `GPUFL_SOURCE_FOLDERS` | Comma-separated list of watched folders. Each is auto-scanned for session subdirectories. |
 
-Use `--folders` when multiple apps share a log directory and you
-don't want to enumerate them. Use `--folder` + `--prefix` when
-you want explicit control.
+Use `--folders` when several hosts/apps share a parent log
+directory; use `--folder` for a single one.
 
 | Flag / env | Default | Purpose |
 |---|---|---|
-| `--prefix=NAME` / `GPUFL_SOURCE_PREFIX` | `gpufl` | Filename prefix to match when using `--folder`. |
 | `--log-types=A,B,...` / `GPUFL_LOG_TYPES` | `device,scope,system` | Channels to tail. |
 | `--cursor-file=PATH` / `GPUFL_CURSOR_FILE` | `./cursor.json` | Where to persist read offsets across restarts. |
+
+:::note Rotated + compressed files
+The agent transparently follows rotated channel files
+(`<channel>.1.log`, `<channel>.2.log.gz`, …) and the
+gzip-compressed terminal file a finished session leaves behind
+(`<channel>.log.gz`). It resumes correctly across restarts even
+if a file was rotated or compressed while the agent was offline.
+
+Pre-v1.2 flat files (`<prefix>.<channel>.log` at the top level)
+are no longer read — the agent warns once per folder and skips
+them. Move old logs into session subdirectories or keep a v1.1
+agent for them.
+:::
 
 ### Publisher (required — `http` or `kafka`)
 
@@ -273,7 +286,7 @@ The HTTP publisher batches lines and POSTs them to
 | `--brokers=HOST:PORT,...` / `GPUFL_KAFKA_BROKERS` | (required) | Bootstrap servers. |
 | `--topic-prefix=PREFIX` / `GPUFL_KAFKA_TOPIC_PREFIX` | `gpu-trace` | Topics are `{prefix}-{logtype}` — e.g. `gpu-trace-device`. |
 | `--compression=TYPE` / `GPUFL_KAFKA_COMPRESSION` | `snappy` | `none` / `gzip` / `snappy` / `lz4` / `zstd`. |
-| `--kafka-linger-ms=MS` / `GPUFL_KAFKA_LINGER_MS` | `0` | Producer batching window. Higher = better throughput, more latency. |
+| `--kafka-linger-ms=MS` / `GPUFL_KAFKA_LINGER_MS` | `100` | Producer batching window. Higher = better throughput, more latency. |
 
 ### Archiver (optional — disabled if `--archiver-endpoint` absent)
 
@@ -301,8 +314,8 @@ java -jar gpufl-agent.jar --config=/etc/gpuflight/agent.json
 ```json title="/etc/gpuflight/agent.json"
 {
   "sources": [
-    { "folder": "/var/log/gpuflight", "filePrefix": "production_app" },
-    { "folder": "/opt/myapp/logs",    "filePrefix": "stress_test" }
+    { "folder": "/var/log/gpuflight" },
+    { "folder": "/opt/myapp/logs" }
   ],
   "publisher": {
     "type": "http",
@@ -327,9 +340,9 @@ java -jar gpufl-agent.jar --config=/etc/gpuflight/agent.json
 ```
 gpufl-client (your app)               gpufl-agent (sidecar)         backend
 ─────────────────────────             ──────────────────────        ──────────
-FileLogSink writes NDJSON   ───►      Tails *.{device,scope,
-to /var/log/gpuflight/                system}.log via virtual
-                                      threads, one per file
+writes NDJSON to            ───►      Tails <session_id>/{device,
+/var/log/gpuflight/                   scope,system}.log via virtual
+  <session_id>/                       threads, one per channel
                                           │
                                           │  batches lines
                                           ▼
@@ -347,10 +360,12 @@ Key properties:
 - **One virtual thread per source × type.** Java 25's virtual
   threads keep the per-file resource cost near zero, so the
   agent can tail dozens of log files without OS-thread bloat.
-- **Cursor-based incremental reads.** `cursor.json` records the
-  byte offset for each `(folder, prefix, type)` triple. On
-  restart, the agent resumes from the recorded offset — no
-  duplicates, no gaps.
+- **Cursor-based incremental reads.** `cursor.json` records, per
+  `(session_id, channel)` stream, the rotated-file index, byte
+  offset, and a content signature of the file. On restart the
+  agent re-locates each file by that signature and resumes from
+  the recorded offset — no duplicates, no gaps, even if a file
+  was rotated or compressed while the agent was down.
 - **Per-channel publishing.** Each NDJSON channel
   (`device` / `scope` / `system`) is handled independently. A
   slow Kafka topic doesn't block the others.
@@ -374,13 +389,13 @@ so it survives container recreation.
 
 ### Log rotation
 
-The agent watches files by inode (Linux) or by handle position
-(Windows). It tolerates rotation as long as the OLD file remains
-readable until the new one starts being written. If you rotate
-by `mv` + `truncate` while the agent has the file open, it'll
-follow the bytes; if you rotate by `delete` + `create`, point
-the agent at the parent directory via `--folders` so it
-re-discovers new files automatically.
+`gpufl-client` owns rotation: the active `<channel>.log` rolls to
+`<channel>.1.log` (optionally `.gz`), and on shutdown the active
+file is compressed in place to `<channel>.log.gz`. The agent
+detects these transitions automatically — it follows the rotated
+index forward and reads gzip-compressed files transparently,
+carrying the byte offset across the switch. You don't configure
+anything; just point the agent at the parent folder.
 
 ### Multiple agents
 

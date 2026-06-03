@@ -194,31 +194,39 @@ gpufl upload /tmp/runs/train
 
 ### What gets uploaded
 
-For a session writing to `/tmp/runs/train`, the file layout on disk is:
+Each session writes into its **own subdirectory** named after the
+session id, so reusing the same `log_path` across runs never mixes two
+sessions' files. For a session writing to `/tmp/runs/train`, the layout
+on disk is:
 
 ```
-/tmp/runs/train.device.log         (active, latest events)
-/tmp/runs/train.scope.log
-/tmp/runs/train.system.log
-/tmp/runs/train.device.1.log.gz    (rotated; oldest = highest N)
-/tmp/runs/train.device.2.log.gz
-...
+/tmp/runs/train/
+  <session_id>/
+    device.log          (active, latest events)
+    scope.log
+    system.log
+    device.1.log.gz     (rotated; oldest = highest N)
+    device.2.log.gz
+    ...
+  .gpufl-upload-cursor.json   (shared across sessions in this dir)
 ```
 
-`uploadLogs` discovers all of these, sorts by (channel, oldest-first
-within channel), then POSTs each NDJSON event to
-`POST {backend_url}/api/v1/events/{eventType}`. Lifecycle ordering is
-preserved: `job_start` is sent first (so the backend creates the
-session row), then all other events in file order, then `shutdown`
-last.
+On shutdown the still-active `*.log` files are gzip-compressed in
+place, so a finished session's data ends up fully compressed.
+
+`uploadLogs` walks each session subdirectory, sorts by (channel,
+oldest-first within channel), then POSTs the NDJSON events to
+`POST {backend_url}/api/v1/events/stream` (chunked, gzip-encoded).
+Lifecycle ordering is preserved: `job_start` is sent first (so the
+backend creates the session row), then all other events in file order,
+then `shutdown` last.
 
 ### Cursor file — partial-resume protection
 
 After a successful upload, gpufl writes
-`<logdir>/.gpufl-upload-cursor.json` listing every rotated file it
-shipped. Re-running `gpufl upload` skips those files but always
-re-uploads the active `.log` (which may have been appended to between
-calls).
+`<logdir>/.gpufl-upload-cursor.json` recording which sessions it has
+already shipped. Re-running `gpufl upload` skips completed sessions and
+picks up any that are still pending.
 
 To force a full re-upload, delete the cursor file.
 

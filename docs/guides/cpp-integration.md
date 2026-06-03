@@ -10,10 +10,9 @@ This guide covers how to use GPUFlight in your CUDA or HIP C++ application.
 int main() {
     gpufl::InitOptions opts;
     opts.app_name = "my_app";
-    opts.log_path = "my_app.log";          // log files: my_app.device.log, my_app.scope.log, my_app.system.log
+    opts.log_path = "my_app";              // session logs land under my_app/<session_id>/{device,scope,system}.log
     opts.continuous_system_sampling = true;  // sample system metrics for the entire session
     opts.system_sample_rate_ms = 50;       // sample GPU/CPU metrics every 50ms
-    opts.enable_kernel_details = true;     // capture grid/block, occupancy, registers
     // opts.backend = gpufl::BackendKind::Auto;  // auto-detect NVIDIA or AMD (default)
 
     gpufl::init(opts);

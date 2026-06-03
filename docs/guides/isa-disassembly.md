@@ -20,11 +20,13 @@ GPUFlight automatically captures and disassembles GPU code objects, providing in
 
 ## Enabling ISA Capture
 
-ISA disassembly is captured automatically when `enable_kernel_details` is set:
+ISA disassembly is captured by the SASS-aware engines — pick
+`SassMetrics` or `Deep` as the `profiling_engine`:
 
 ```cpp
 gpufl::InitOptions opts;
-opts.enable_kernel_details = true;
+opts.profiling_engine = gpufl::ProfilingEngine::SassMetrics;  // or ::Deep
+// opts.enable_source_collection = true;  // default — also pulls in source lines for correlation
 gpufl::init(opts);
 ```
 
