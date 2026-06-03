@@ -48,7 +48,6 @@ int main() {
     opts.app_name = "matmul_demo";
     opts.continuous_system_sampling = true;
     opts.system_sample_rate_ms = 50;
-    opts.enable_kernel_details = true;
     opts.profiling_engine = gpufl::ProfilingEngine::SassMetrics;
     gpufl::init(opts);
 
@@ -77,6 +76,31 @@ NVIDIA GPUs support multiple profiling engines selected via
 [Profiling engines](../api-reference#profiling-engines-nvidia) for an
 at-a-glance comparison of overhead and use case; this section is the
 deep dive on each engine with example code.
+
+:::warning Call `gpufl.init()` before your first CUDA kernel — especially for `Deep` / `SassMetrics` / `RangeProfiler`
+The `SassMetrics`, `RangeProfiler`, and `Deep` engines use CUPTI's
+**Profiler API** (`cuptiProfilerInitialize`), which must initialize
+against a **clean CUDA context** — one that hasn't yet loaded modules
+or launched kernels. If you call `gpufl.init()` *mid-program* (after
+your framework has already created tensors and run kernels), the
+Profiler API can fail to initialize and the engine is skipped. In a
+PyTorch app this means calling `gpufl.init()` **right after
+`import torch`, before the first `.cuda()` / kernel launch**:
+
+```python
+import torch          # framework first (also avoids the CUPTI import-order conflict)
+import gpufl
+gpufl.init("my_app", profiling_engine=gpufl.ProfilingEngine.Deep)  # before any GPU work
+# ... now build tensors, run the model, wrap hot regions in gpufl.Scope(...) ...
+```
+
+When the Profiler API can't initialize, GPUFlight degrades gracefully
+rather than crashing: `Deep` falls back to `PcSampling`, and standalone
+`SassMetrics` falls back to kernel-trace only — with a log line naming
+the cause. `Monitor`, `Trace`, and `PcSampling` do **not** have this
+constraint; they reuse whatever CUDA context already exists and are
+safe to start at any point in the program.
+:::
 
 ### Monitor (the default)
 

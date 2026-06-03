@@ -57,7 +57,7 @@ int main() {
     opts.app_name = "hip_demo";
     opts.continuous_system_sampling = true;
     opts.system_sample_rate_ms = 50;
-    opts.enable_kernel_details = true;
+    opts.profiling_engine = gpufl::ProfilingEngine::Trace;  // capture kernels (default is Monitor = telemetry only)
     gpufl::init(opts);
 
     int* d_data;

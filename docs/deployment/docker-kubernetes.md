@@ -200,7 +200,9 @@ spec:
 
 Then on every application Pod, mount the same `hostPath` and
 point `gpufl::InitOptions::log_path` into it (e.g.
-`/var/log/gpuflight/${HOSTNAME}.system.log`). The Pods don't need
+`/var/log/gpuflight/${HOSTNAME}`). Each run writes into its own
+`<log_path>/<session_id>/` subdirectory, which the agent
+auto-discovers. The Pods don't need
 `GPUFL_API_KEY` — file writes are all the agent needs; the agent
 authenticates and uploads on their behalf.
 

@@ -64,18 +64,21 @@ batch (120ms)
 
 ### Object-Based
 
-For scopes that don't map to a single code block:
+For scopes that don't map to a single `{ }` block, control the scope's
+lifetime with a nested block — the scope ends when the
+`ScopedMonitor` goes out of scope (RAII):
 
 ```cpp
-auto scope = gpufl::ScopedMonitor("data_loading");
-// ... load and preprocess data ...
-scope.end();  // explicitly end the scope
+{
+    gpufl::ScopedMonitor scope("data_loading");
+    // ... load and preprocess data ...
+}   // scope ends here, when `scope` is destroyed
 ```
 
 ### Lambda-Based
 
 ```cpp
-gpufl::scope("inference", [&]() {
+gpufl::monitor("inference", [&]() {
     result = model.forward(input);
 });
 ```
@@ -120,6 +123,51 @@ there's no `@gpufl.scope(...)` decorator today. Wrap a function body
 with `with gpufl.Scope("name"):` instead. (A decorator wrapper is on
 the v1.x roadmap.)
 :::
+
+## Benchmark loops (`repeat` / `warmup`)
+
+When you're micro-benchmarking a kernel, you usually want to run it N
+times and exclude a few cold-start iterations (JIT compile, cold
+caches) from the measurement. Instead of hand-writing two loops plus a
+scope, give the scope a `repeat` (and optional `warmup`) count.
+
+### C++ — `GFL_BENCH`
+
+```cpp
+#include <gpufl/gpufl.hpp>
+
+// Runs the body 3 warmup times BEFORE the scope opens (excluded from
+// the measured window), then 10 measured times inside it.
+GFL_BENCH("matmul", gpufl::ScopeMeta{}.setRepeat(10).setWarmup(3)) {
+    my_kernel<<<grid, block>>>(...);
+    cudaDeviceSynchronize();
+};   // ← the trailing ';' is required
+```
+
+The builder form (`ScopeMeta{}.setRepeat(...).setWarmup(...)`) compiles
+on every major compiler in `/std:c++17`. The body is captured by
+reference, so it sees enclosing locals. **`return` inside the body
+returns from the lambda, not the enclosing function** — throw an
+exception for fatal errors instead.
+
+### Python — iterable `Scope`
+
+Construct `Scope` with `repeat=N` and iterate it. It opens the scope
+once, brackets all `repeat` measured iterations, and closes when the
+loop ends:
+
+```python
+# warmup iterations yield negative indices (-warmup .. -1);
+# measured iterations yield 0 .. repeat-1.
+for i in gpufl.Scope("matmul", "math", repeat=10, warmup=3):
+    matmul_kernel[bpg, tpb](A, B, C)
+    # if i >= 0:  # only true for measured iterations
+```
+
+The begin row of the scope carries the `repeat` / `warmup` counts, so
+the dashboard and the analyzer can report a per-iteration average
+without you computing it. A plain `with gpufl.Scope("name"):` (no
+`repeat`) behaves exactly as before.
 
 ## Scope Best Practices
 
