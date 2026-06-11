@@ -1,6 +1,7 @@
 ---
 slug: amd-rocm-support
 title: AMD ROCm Support
+date: 2026-04-05
 authors: [gpuflight]
 tags: [release, amd, feature]
 ---

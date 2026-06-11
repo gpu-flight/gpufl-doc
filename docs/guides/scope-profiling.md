@@ -213,7 +213,12 @@ Scopes are **additive**. Once you've completed the one-time embedded integration
 
 You don't need to scope your entire application at once. Add them where you need clarity.
 
-> **Note:** If you haven't done the embedded integration yet, the sidecar-only deployment (`gpufl-monitor`) gives you system telemetry — GPU utilization, memory, temperature, power, CPU/RAM — but **not** kernel events or scopes. See [Three Levels of Integration](../intro#three-levels-of-integration) for the full breakdown.
+> **Note:** `GFL_SCOPE` / `gpufl.Scope` are for applications that embed
+> GPUFlight and call `gpufl::init()` directly. If you are using
+> `gpufl trace` without linking the SDK, use NVTX ranges to label
+> application phases. If you only need machine telemetry, `gpufl monitor`
+> or the Docker sidecar path records GPU/host metrics without kernel
+> events or scopes. See [Ways to use GPUFlight](../intro#ways-to-use-gpuflight).
 
 ## What's Next
 

@@ -13,38 +13,77 @@ Two engines anchor the workflow:
 
 The engine is a deployment-time switch, not a different tool. The same SDK, same scopes, same dashboard, same data model work on both sides. Set `GPUFL_PROFILING_ENGINE=PcSampling` in your production environment and the same binary that ran `Deep` locally drops to PC sampling on the fleet. No rebuild. (And `Monitor` — the default — is lighter still: GPU/host health metrics with no CUPTI at all.)
 
-## Three Levels of Integration
+## Ways to use GPUFlight
 
-GPUFlight offers three levels of integration. Pick the deepest level you're willing to integrate — each level adds capabilities on top of the previous one.
+GPUFlight has several entry points. They are separate workflows, not a
+stack of levels where one choice automatically includes the next.
 
-### Level 1: Zero-Code Monitoring (sidecar)
+### Native foreground monitor
 
-**No code changes required, no SDK in your app.** Run the `gpufl-monitor` daemon as a sidecar container on the same host as your GPU workload. It samples system metrics directly from NVML (NVIDIA) or ROCm SMI (AMD) and ships them to the cloud dashboard.
-
-What you get at Level 1:
-- GPU utilization, VRAM, temperature, power, clock speeds
-- Host CPU and RAM metrics
-- AMD extended metrics: fan speed, junction/memory temperature, voltage, energy, PCIe bandwidth, ECC error counts
-- Real-time and historical dashboard views
-
-What Level 1 **does not** give you (these require Level 2):
-- CUDA/HIP kernel event capture (timing, occupancy, grid/block dimensions)
-- SASS/ISA instruction-level disassembly and stall analysis
-- Memory copy event tracking (H2D, D2H, D2D)
-- CPU stack traces
+Use `gpufl monitor` when you want machine-level GPU and host telemetry
+from a terminal session:
 
 ```bash
-# Sidecar — no changes to your application at all
+gpufl monitor --interval=1000
+```
+
+This does not trace kernels and it does not require Docker. It samples
+system metrics such as GPU utilization, memory, temperature, power,
+clocks, CPU, and RAM. With `--upload`, the command also starts
+`gpufl-agent` as a managed child process so those local logs can stream
+to the dashboard:
+
+```bash
+gpufl monitor --interval=1000 --upload
+```
+
+### Docker sidecar monitor
+
+Use the Docker/supervisor path when monitoring should run as
+infrastructure next to the workload:
+
+```bash
 docker compose -f docker-compose.monitor.yml up -d
 ```
+
+This path runs the standalone `gpufl-monitor` daemon and the standalone
+`gpufl-agent` uploader. It is operationally different from
+`gpufl monitor`: the native command is a foreground CLI session, while
+the Docker path is a deployed service/sidecar pattern.
 
 See the [Docker & Kubernetes Guide](deployment/docker-kubernetes) and the
 [`gpufl-monitor` daemon README](https://github.com/gpu-flight/gpufl-client/tree/main/daemon)
 for deployment details.
 
-### Level 2: Embedded Integration
+### Launch-time trace
 
-**Link `gpufl-client` into your application and call `gpufl::init()` once at startup.** This is where the kernel-level features turn on, because GPUFlight needs to attach CUPTI (NVIDIA) or rocprofiler-sdk (AMD) inside your process to intercept GPU activity.
+Use `gpufl trace` when you want kernel-level profiling for a program you
+can launch from the command line:
+
+```bash
+gpufl trace -- python train.py
+```
+
+`gpufl trace` injects GPUFlight into the launched process and records
+kernel timing, launch configuration, memory copies, synchronization, and
+system metrics without source changes. It is meant for launch-time
+profiling of an existing program. If your application already embeds
+GPUFlight and calls `gpufl::init()` itself, run that application normally
+and configure the embedded SDK path; wrapping the same program again
+with `gpufl trace` is not guaranteed to be a supported combination.
+
+For clearer trace analysis, add NVTX ranges to the application. NVTX is
+a lightweight way to label phases such as `prefill`, `decode`,
+`batch_0`, or `optimizer_step` without adopting the embedded GPUFlight
+scope API.
+
+See [Capturing traces](getting-started/capturing-traces) for the trace
+workflow.
+
+### Embedded SDK
+
+Use the embedded SDK when you own the application code and want
+GPUFlight initialized directly inside the process:
 
 ```cpp
 #include <gpufl/gpufl.hpp>
@@ -55,56 +94,37 @@ int main() {
     opts.continuous_system_sampling = true;
     gpufl::init(opts);
 
-    // ...your existing CUDA/HIP code, unchanged...
+    // ...your existing CUDA/HIP code...
 
     gpufl::shutdown();
 }
 ```
 
-After the one-time integration above, all runtime behavior — upload, profiling engine, sampling rate, remote-config name — is controlled by `GPUFL_*` environment variables. No rebuild needed to change configuration.
+After the one-time integration above, runtime behavior such as upload,
+profiling engine, sampling rate, and remote-config name can be controlled
+through `GPUFL_*` environment variables.
 
-What Level 2 adds on top of Level 1:
-- CUDA/HIP kernel event capture (timing, occupancy, grid/block dimensions, register usage, shared memory)
-- SASS/ISA instruction-level disassembly and stall analysis
-- Memory copy event tracking (H2D, D2H, D2D)
-- CPU stack traces (NVIDIA)
-- Profiling engines: PC Sampling, SASS Metrics, Range Profiler, PC Sampling + SASS
+### Application annotations
 
-See the [Installation Guide](getting-started/installation) to get started.
+Annotations are a separate way to add meaning to the trace. They are not
+"level 3" of the monitor/trace stack.
 
-### Level 3: Scope Annotations (Optional, on top of Level 2)
+- Use **NVTX ranges** when you are profiling with `gpufl trace` and want
+  high-level regions without linking the GPUFlight SDK.
+- Use **`GFL_SCOPE` / `gpufl.Scope`** when the application embeds
+  GPUFlight and you want GPUFlight-owned scope events.
 
-**Add a few lines of code** to connect your application logic to GPU behavior. Scope annotations let you label phases of your pipeline so you can see exactly which part of your code is responsible for which GPU activity.
+Both approaches help connect raw kernel activity to application phases.
+Use them for the higher-level "why", not the low-level "what".
 
-```cpp
-#include <gpufl/gpufl.hpp>
-
-void train_step() {
-    GFL_SCOPE("forward_pass") {
-        conv_kernel<<<grid, block>>>(...);
-        relu_kernel<<<grid, block>>>(...);
-    }
-
-    GFL_SCOPE("backward_pass") {
-        grad_kernel<<<grid, block>>>(...);
-        update_kernel<<<grid, block>>>(...);
-    }
-}
-```
-
-What scope annotations add on top of Level 2:
-- Named timing regions in the timeline view
-- Nested scope hierarchy (e.g., "epoch > batch > forward_pass")
-- Correlation between your high-level code and low-level kernel events
-- Per-scope GPU time attribution in reports
-
-See the [Scope Profiling Guide](guides/scope-profiling) for details.
+See the [Scope Profiling Guide](guides/scope-profiling) for embedded
+GPUFlight scopes.
 
 ## How data reaches the dashboard
 
 `gpufl-client` always writes telemetry to local NDJSON files during a
-session. Two paths ship those files to the backend, and they share the
-same on-disk source of truth:
+session. Upload tools ship those files to the backend, and they share
+the same on-disk source of truth:
 
 - **In-process deferred upload.** After `gpufl::shutdown()` returns,
   call `gpufl::uploadLogs(opts)` in C++ or `gpufl.upload_logs(...)` in
@@ -116,9 +136,15 @@ same on-disk source of truth:
   the host; it tails NDJSON files and uploads compressed batches
   (10–15× smaller than per-event uploads). Best for production fleets
   where many GPUs are emitting concurrently.
+- **Native monitor upload.** Run `gpufl monitor --upload` for
+  telemetry-only machine monitoring; it writes local logs and starts
+  `gpufl-agent` for live upload.
+- **Browser upload.** Drop a session folder into the dashboard when
+  you copied logs from another machine or do not have CLI credentials
+  on that host.
 
-Both paths can coexist. See [Sending data to the dashboard](getting-started/sending-data)
-for the full guide.
+See [Sending data to the dashboard](getting-started/sending-data) for
+the full guide.
 
 ## Key Features
 

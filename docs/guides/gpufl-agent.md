@@ -30,6 +30,11 @@ For local dev, SSH sessions, and Jupyter notebooks, the
 in-process [deferred upload](../getting-started/sending-data#path-1-in-process-deferred-upload)
 is friction-free and probably what you want.
 
+For native telemetry-only monitoring, `gpufl monitor --upload` starts
+this same agent for you as a managed child process. Use the standalone
+agent when one service should tail many log folders, survive independently
+of the monitor command, or run under Docker/systemd/Kubernetes.
+
 ## Install
 
 The agent is distributed as a Docker image and as a fat JAR.
