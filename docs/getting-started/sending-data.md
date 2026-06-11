@@ -1,38 +1,39 @@
 ---
-sidebar_position: 3
+sidebar_position: 99
 title: Sending data to the dashboard
 ---
 
 # Sending data to the dashboard
 
+This is the last Getting Started step: first install GPUFlight, then
+capture a local trace or start a monitor, then choose how the local
+NDJSON files reach the dashboard.
+
 `gpufl-client` always writes telemetry to local NDJSON files (via
 `FileLogSink`). What you choose is **how those files get shipped to
-the backend**. There are two paths, and they share the same on-disk
-NDJSON files as source of truth.
+the backend**. The upload paths below share the same on-disk NDJSON
+files as source of truth.
 
-| You're working in… | Pick |
-|---|---|
-| Local dev, SSH session, Jupyter notebook, one-off CI runs | **In-process deferred upload** (this page) |
-| Production, multi-process workloads, fleet of nodes | **`gpufl-agent`** (separate JVM service that tails NDJSON) |
-| You don't know yet | **In-process deferred upload** — one library, no extra processes |
+The main upload entry points are:
 
-Both paths can coexist on the same NDJSON files — they cooperate via
-the cursor file in the log directory.
+- `gpufl upload <log-dir>` for post-run CLI upload.
+- Deferred upload APIs such as `gpufl::uploadLogs()` and
+  `gpufl.upload_logs(...)` for applications that call the SDK directly.
+- `gpufl monitor --upload` for native foreground telemetry plus live
+  agent upload.
+- Standalone `gpufl-agent` for deployed log tailing.
+- Browser upload from the dashboard when you already have a session
+  folder.
 
-:::note Live streaming is removed; the kwarg name is deprecated
-Previous releases shipped an `HttpLogSink` that POSTed every NDJSON
-line live during a session. That mechanism is gone in v1.1 — network
-errors during the session could leak into the GPU job's exit code,
-and per-event HTTP added measurable jitter to PyTorch training runs.
+The native upload paths can coexist on the same NDJSON files: they
+cooperate via the cursor file in the log directory.
 
-The `remote_upload=True` kwarg still works in v1.1 as a **deprecation
-shim** — it emits a `DeprecationWarning` and routes through an
-`atexit` handler that calls the new deferred upload at interpreter
-exit, so existing customer code keeps working unchanged. The flag,
-plus `backend_url` and `api_key` on `InitOptions`, are scheduled for
-removal in v1.2 — at which point creds will live only on
-`UploadOptions`. See [Migration](#migration-from-remote_uploadtrue)
-below for the recommended new shape.
+:::note Deprecated `remote_upload=True`
+The old live HTTP path was removed in v1.1. `remote_upload=True` remains
+as a compatibility shim for one release, but new code should use deferred
+upload APIs or an agent-based upload path. See
+[Remote upload migration](../guides/remote-upload-migration) for exact
+replacement snippets.
 :::
 
 ## Path 1: In-process deferred upload
@@ -133,8 +134,8 @@ a previously-offline run after the fact:
 
 ```bash
 gpufl upload /tmp/runs/train \
-    --backend-url https://api.gpuflight.com \
-    --api-key gpfl_xxxxx
+    --backend-url=https://api.gpuflight.com \
+    --api-key=gpfl_xxxxx
 ```
 
 Exit codes:
@@ -156,7 +157,7 @@ A log directory may contain more than one session if the same
 | Invocation | What gets uploaded |
 |---|---|
 | `gpufl upload <path>` *(no flags)* | **The latest session only** — finds every `job_start` in the files, picks the one with the highest `ts_ns`, uploads only that. This is the default because the typical workflow is "I just ran a thing, ship it." |
-| `gpufl upload <path> --session-id <uuid>` | Only that session. Errors if not present in any file. |
+| `gpufl upload <path> --session-id=<uuid>` | Only that session. Errors if not present in any file. |
 | `gpufl upload <path> --all-sessions` | Every session in the directory, oldest first. Per-session lifecycle ordering — each session's `job_start → batches → shutdown` block ships intact before the next one starts. |
 
 `--session-id` and `--all-sessions` are mutually exclusive.
@@ -178,7 +179,7 @@ session regardless of the cursor.
 
 ```bash
 # Re-upload a session you've already shipped
-gpufl upload /tmp/runs/train --session-id 7f3a... --force
+gpufl upload /tmp/runs/train --session-id=7f3a... --force
 
 # Force re-upload of every session in the directory
 gpufl upload /tmp/runs/train --all-sessions --force
@@ -246,113 +247,115 @@ host process exit code:
 Inspect `UploadResult.success` and `UploadResult.warnings` to know
 what happened.
 
-## Path 2: Agent daemon (`gpufl-agent`)
+## Path 2: Live upload with `gpufl-agent`
+
+For a local or SSH workflow where you want always-on GPU/host telemetry
+and live dashboard updates, the native launcher can start both the
+monitor and the agent:
+
+```bash
+export GPUFL_BACKEND_URL=https://api.gpuflight.com
+export GPUFL_API_KEY=gpfl_xxxxx
+
+gpufl monitor --name=inference-node --interval=1000 --upload
+```
+
+`gpufl monitor` writes telemetry-only logs: GPU utilization, memory,
+temperature, power, clocks, CPU, and RAM. It does not attach CUPTI to
+another running process and it does not replace `gpufl trace` for
+kernel-level profiling.
+
+With `--upload`, the monitor starts `gpufl-agent` as a managed child
+process. The agent remains the live uploader: it tails the NDJSON files,
+tracks offsets with a cursor file, handles rotation/restart recovery,
+and sends compressed stream batches to the backend.
+
+If the agent is not on `PATH`, point the monitor at the fat JAR:
+
+```bash
+gpufl monitor --upload \
+  --agent-jar=/opt/gpufl-agent/gpufl-agent.jar
+```
+
+### Production agent daemon
 
 For production fleets where many GPU nodes write logs continuously,
-deploying the standalone `gpufl-agent` JVM service is the
-recommended path. It tails NDJSON files on disk, gzips compressed
-batches (10–15× smaller than per-event uploads), and uploads on a
-fixed cadence regardless of when your workloads start/stop.
+deploying the standalone `gpufl-agent` JVM service is the recommended
+path. It tails NDJSON files on disk, gzips compressed batches
+(10-15x smaller than per-event uploads), and uploads on a fixed cadence
+regardless of when your workloads start/stop.
 
-This path is documented under
+This standalone path is documented under
 [Docker & Kubernetes](../deployment/docker-kubernetes). The
 in-process upload (Path 1) and the agent (Path 2) share the same
 cursor-file convention, so they can run concurrently on the same log
 directory without sending duplicate data.
 
-## When to use which
+## Path 3: Browser upload from the dashboard
 
-- **In-process deferred upload (Path 1)** — single-process workloads,
-  dev / notebook / CI runs, anywhere you don't want a separate daemon.
-  Recommended default.
-- **Agent daemon (Path 2)** — multi-host fleets, long-running
-  production services, ML training clusters where you want a uniform
-  upload path independent of your workload's lifecycle.
+When installing gpufl isn't an option — an air-gapped GPU box, a trace
+a colleague sent you, or a run you copied off a cluster — upload the
+session folder straight from the dashboard. No CLI, no API key: your
+browser login is the credential, and the upload speaks the exact same
+chunked wire as `gpufl upload`, so everything lands identically.
 
-You can switch between them — the on-disk NDJSON files are the source
-of truth, so a run started under Path 1 can be re-uploaded by Path 2
-later (or vice versa).
+You need the session folder gpufl wrote on disk (the layout shown in
+[What gets uploaded](#what-gets-uploaded)) — either the whole log
+directory (one subfolder per session) or a single `<session_id>/`
+folder. Rotated `.log.gz` files are read in the browser as-is; nothing
+needs unpacking first.
 
-## Migration from `remote_upload=True`
+### Step 1 — open the Uploads page
 
-`remote_upload` is deprecated in v1.1 and will be removed in v1.2.
-The old form still works for one release — there's no rush to update
-— but new code should use the deferred forms below.
+![The Uploads page with the drop zone and the live ingest history](/img/upload/browser-upload-1-page.png)
 
-### Python — still works in v1.1, removed in v1.2
+Open **Uploads** in the left navigation, right under Sessions. The
+table below the drop zone is the live ingest history — every chunk you
+upload shows up there with its processing status.
 
-```python
-# Old (still works, emits DeprecationWarning)
-gpufl.init(app_name="x", backend_url="...", api_key="...",
-           remote_upload=True)
-# ... work ...
-gpufl.shutdown()
-# upload_logs() runs at interpreter exit via the atexit shim.
-```
+### Step 2 — drop your session folder and review the plan
 
-Recommended replacements:
+![Two sessions found, one pre-deselected because the cursor file marks it uploaded](/img/upload/browser-upload-2-plan.png)
 
-```python
-# Option A — orchestrated (recommended for notebooks / scripts)
-with gpufl.session(app_name="x",
-                   backend_url="https://api.gpuflight.com",
-                   api_key="gpfl_xxxxx"):
-    # ... work ...
-# On __exit__: shutdown() then upload_logs() — automatic.
+Drag the folder onto the drop zone (or click **browse…** and pick the
+directory). The plan lists every session found, with file count and
+total size:
 
-# Option B — explicit (control over timing + result inspection)
-gpufl.init(app_name="x", backend_url="...", api_key="...")
-# ... work ...
-gpufl.shutdown()
-result = gpufl.upload_logs(
-    log_path="x", backend_url="...", api_key="...",
-)
-```
+- Sessions the folder's `.gpufl-upload-cursor.json` marks as already
+  uploaded are **unchecked by default** — the "already uploaded
+  (cursor)" badge. Tick them only if you really want to re-send.
+- Sessions the backend already has upload history for get an
+  **"already on server"** warning. Uploading them again duplicates
+  their events, so only do it deliberately.
+- Files that aren't gpufl logs are skipped and listed, never sent.
 
-### C++ — auto-upload at shutdown in v1.1, removed in v1.2
+Click **Upload** when the selection looks right.
 
-```cpp
-// Old — still compiles, logs a deprecation message at init()
-opts.remote_upload = true;
-gpufl::init(opts);
-// ... work ...
-gpufl::shutdown();
-// gpufl::shutdown() now auto-invokes gpufl::uploadLogs() with the
-// InitOptions creds at the end of teardown. Expect shutdown to block
-// for seconds-to-minutes proportional to log volume.
-```
+### Step 3 — watch it ship
 
-```cpp
-// New (drop the flag, control timing yourself)
-gpufl::init(opts);
-// ... work ...
-gpufl::shutdown();
+![Per-session progress bar with chunk count, and the first chunks already appearing in the history](/img/upload/browser-upload-3-progress.png)
 
-gpufl::UploadOptions uopts;
-uopts.log_path    = opts.log_path;
-uopts.backend_url = opts.backend_url;
-uopts.api_key     = opts.api_key;
-const auto r = gpufl::uploadLogs(uopts);
-if (!r.success) for (const auto& w : r.warnings) std::cerr << w << "\n";
-```
+Files upload in the same order the CLI uses — rotated files
+oldest-first, the active log last, `shutdown` events held to the very
+end so the backend sees a clean session lifecycle. Each ~5 MB chunk
+becomes a history row the moment the backend accepts it. **Cancel**
+stops after the current chunk.
 
-The new form gives you the `UploadResult` to inspect (warnings,
-event count, elapsed time) and lets you decide whether the upload
-runs synchronously, in a background thread, or not at all.
+### Step 4 — confirm in the history
 
-The `GPUFL_REMOTE_UPLOAD` env var is still read in v1.1 and routes
-through the Python atexit shim. It's removed in v1.2 along with the
-field — start dropping it from container manifests / start scripts.
+![Upload finished: sent summary on the session, history rows draining from Received to Done](/img/upload/browser-upload-4-done.png)
 
-### v1.2 will go further
+When the session shows **sent · N chunks / M events**, everything was
+accepted. The rows below drain from *Received* → *Processing* → *Done*
+as the ingest worker processes them; a *Failed* row expands on click
+with the reason. Once ingested, the session appears under **Sessions**
+like any other run.
 
-`backend_url` and `api_key` on `InitOptions` are also scheduled for
-removal in v1.2. Long-term, all backend creds move to `UploadOptions`
-exclusively, and `gpufl::init()` stops dealing with network config.
-Future-proof your code by passing creds directly to `uploadLogs()`
-even today — the InitOptions fields stay functional until v1.2 but
-won't be the canonical home.
-
-The `backend_url` / `api_key` fields on `InitOptions` stay — they're
-the canonical place to store the credentials and `uploadLogs` can
-read them back if you wire it up that way.
+:::note
+- Browser uploads count against your workspace's monthly traffic, the
+  same as CLI uploads.
+- Chunks are gzipped in the browser via `CompressionStream` — any
+  current Chrome / Edge / Firefox 113+ / Safari 16.4+ works.
+- Re-uploading a session currently duplicates its events. Trust the
+  cursor / already-on-server warnings unless you know what you're doing.
+:::

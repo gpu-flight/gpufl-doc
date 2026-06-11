@@ -3,6 +3,6 @@
   "position": 2,
   "link": {
     "type": "generated-index",
-    "description": "How to get GPUFlight up and running."
+    "description": "Install GPUFlight, capture your first trace or monitor session, then send data to the dashboard."
   }
 }

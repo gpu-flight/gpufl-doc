@@ -96,3 +96,27 @@ correctly) for visualization-grade insight.
 :::
 
 The Python library works with logs from both NVIDIA and AMD sessions — no backend-specific installation is needed for analysis.
+
+## Next: capture a trace
+
+If you installed the native `gpufl` launcher, the quickest smoke test is
+to run an existing CUDA program under `gpufl trace`:
+
+```bash
+gpufl trace -- python train.py
+```
+
+This does not require linking the SDK into your application. GPUFlight
+injects into the launched process, writes local NDJSON logs, and records
+kernel timing, launch metadata, memory copies, synchronization events,
+and system metrics.
+
+For machine-level telemetry without kernel profiling, use:
+
+```bash
+gpufl monitor --interval=1000
+```
+
+Continue with [Capturing traces](capturing-traces) for the launcher
+workflow, then [Sending data to the dashboard](sending-data) when you
+are ready to upload the local logs.
