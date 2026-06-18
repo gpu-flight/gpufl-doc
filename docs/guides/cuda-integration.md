@@ -140,6 +140,14 @@ Instruments kernel instructions to count exact execution and memory access patte
 
 The ratio of thread instructions to warp instructions reveals **thread divergence** at each instruction.
 
+### PM Sampling
+
+```cpp
+opts.profiling_engine = gpufl::ProfilingEngine::PmSampling;
+```
+
+Periodically samples hardware performance metrics into a time series — SM / memory / tensor-core utilization over the life of the session. Low overhead, and unlike `RangeProfiler` it needs no per-scope replay, so it answers "how busy was each subsystem, and when" without per-instruction detail. Tuned via the `pm_sampling_*` options (see the [API reference](../api-reference#initialization)).
+
 ### Range Profiler
 
 ```cpp
@@ -151,6 +159,14 @@ Collects hardware performance counters per scope via NVIDIA PerfWorks. Provides:
 - L1/L2 cache hit rates
 - DRAM read/write bytes
 - Tensor core active percentage
+
+### Range Profiler (Kernel Replay)
+
+```cpp
+opts.profiling_engine = gpufl::ProfilingEngine::RangeProfilerKernelReplay;
+```
+
+The same hardware throughput counters as `RangeProfiler`, but captured **per kernel** (via CUPTI AutoRange + kernel replay) instead of per scope. Use it when you want counter exports attributed to individual kernels rather than a whole scope.
 
 ### Deep (PC Sampling + SASS)
 

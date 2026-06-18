@@ -95,6 +95,16 @@ void generateReport(const std::string& output_path = "");
 | `kernel_sample_rate_ms` | `0` | **Deprecated (1.0.1) — has no effect.** It previously throttled kernel activity-record processing, but that corrupted kernel GPU-time totals (durations were over-counted on host-bound workloads), so it was disabled. All kernel activity records are now always captured. Still accepted (won't error) for backward compatibility; will be removed in a future major release. |
 | `continuous_system_sampling` | `false` | Policy for the system-metric sampler. <br />**`true`** — sample continuously from `init()` to `shutdown()` regardless of scopes. Use for fleet monitoring / dashboards / any always-on use case. <br />**`false`** — sampler is idle by default and activates only while inside a `GFL_SCOPE` region (auto-bracketing) or between explicit `systemStart()` / `systemStop()` calls. Outside those windows zero system-metric events are emitted. <br />Renamed from `sampling_auto_start` in 1.0.4. The old kwarg is still accepted from Python with a `DeprecationWarning`; C++ callers must use the new name. |
 
+**PM Sampling** (used only when `profiling_engine = PmSampling`)
+
+| Field | Default | Notes |
+|---|---|---|
+| `pm_sampling_interval_us` | `100` | Hardware sampling interval, in microseconds. |
+| `pm_sampling_max_samples` | `4096` | Decoded-sample ring-buffer capacity per window. |
+| `pm_sampling_preset` | `"overview"` | Named metric set to sample. |
+| `pm_sampling_metrics` | `[]` | Explicit metric list; overrides the preset when non-empty. |
+| `pm_sampling_scope_only` | `true` | Sample only inside `GFL_SCOPE` regions (vs. the whole session). |
+
 **Profiling engine**
 
 See [Profiling Engines](#profiling-engines-nvidia) below.
@@ -122,7 +132,7 @@ explicitly in code; env vars apply when the field is left at default.
 | `GPUFL_API_PATH` | `api_path` |
 | `GPUFL_CONFIG_FILE` | `config_file` |
 | `GPUFL_REMOTE_UPLOAD` | `remote_upload` — **DEPRECATED v1.1, removed v1.2.** Still read in v1.1 (routes through the Python atexit shim). Drop from container manifests when convenient. |
-| `GPUFL_PROFILING_ENGINE` | `profiling_engine` — accepts engine names (`Monitor`, `Trace`, `PcSampling`, `SassMetrics`, `RangeProfiler`, `Deep`). |
+| `GPUFL_PROFILING_ENGINE` | `profiling_engine` — accepts engine names (`Monitor`, `Trace`, `PcSampling`, `SassMetrics`, `PmSampling`, `RangeProfiler`, `RangeProfilerKernelReplay`, `Deep`). |
 
 ### Scoping
 
@@ -160,7 +170,7 @@ enum class BackendKind { Auto, Nvidia, Amd, None };
 
 ### Profiling engines {#profiling-engines-nvidia}
 
-Profiling depth is one setting, `profiling_engine`, chosen from a six-level
+Profiling depth is one setting, `profiling_engine`, chosen from an eight-level
 ladder. The default is **`Monitor`** (health metrics only, no CUPTI). Step up
 the ladder for more detail at higher cost; the production-safe sweet spot is
 **`PcSampling`**, and **`Deep`** is the full development-time profile.
@@ -181,7 +191,9 @@ enum class ProfilingEngine {
     Trace,          // + activity trace: kernels, memcpy, sync (no sampling)
     PcSampling,     // + PC-level stall-reason sampling
     SassMetrics,    // + per-instruction SASS counters
-    RangeProfiler,  // + hardware throughput counters (Perfworks)
+    PmSampling,     // + time-series PM hardware samples (SM/mem/tensor util)
+    RangeProfiler,  // + hardware throughput counters (PerfWorks), per scope
+    RangeProfilerKernelReplay,  // + the same counters, per kernel (kernel replay)
     Deep,           // PcSampling + SassMetrics in one run
 };
 ```
@@ -192,7 +204,9 @@ enum class ProfilingEngine {
 | `Trace` | ✓ | ✓ | Low | + activity trace: kernel events (timing, grid/block, registers, occupancy), memcpy/memset, sync |
 | `PcSampling` (production-safe) | ✓ | ✗ | Low | + stall reasons per PC, hot-PC distribution, function/source-line correlation per sample |
 | `SassMetrics` | ✓ | ✗ | Significant | + per-instruction execution counts, memory coalescing efficiency, divergence analysis |
+| `PmSampling` | ✓ | ✗ | Low | + time-series PM hardware samples (SM / memory / tensor utilization over time) |
 | `RangeProfiler` | ✓ | ✗ | Moderate, per scope | + hardware counter exports per scope (achieved occupancy, DRAM throughput). Niche. |
+| `RangeProfilerKernelReplay` | ✓ | ✗ | Moderate, per kernel | the same hardware counters as `RangeProfiler`, attributed per kernel via CUPTI kernel replay |
 | `Deep` | ✓ | ✗ | Significant kernel slowdown | `PcSampling` + `SassMetrics` together — the deepest single-run profile |
 
 :::tip Deep-mode overhead is intrinsic

@@ -173,12 +173,19 @@ the full guide.
 - CPU stack traces (NVIDIA)
 
 ### Profiling Engines (NVIDIA)
+
+A monotonic ladder of increasing capture depth and cost — one engine per run:
+
 - **`Monitor`** (default): GPU/host health metrics only — no CUPTI. Lowest overhead.
 - **`Trace`**: Activity trace — kernels, memcpy, sync — with timing and launch config. No sampling.
 - **`PcSampling`**: Stall-reason sampling at the program counter level. Low overhead, production-safe.
 - **`SassMetrics`**: Per-instruction execution counts, memory coalescing efficiency, divergence analysis.
-- **`RangeProfiler`**: Hardware performance counters via NVIDIA PerfWorks for per-scope metric exports. Moderate per-scope overhead.
+- **`PmSampling`**: Time-series hardware metric samples — SM / memory / tensor utilization over time. Low overhead.
+- **`RangeProfiler`**: Hardware throughput counters via NVIDIA PerfWorks for per-scope metric exports (SM/memory/tensor utilization, L1/L2 hit rates, DRAM bandwidth). Moderate per-scope overhead.
+- **`RangeProfilerKernelReplay`**: The same hardware counters captured per kernel (via CUPTI kernel replay) rather than per scope.
 - **`Deep`**: `PcSampling` + `SassMetrics` together — the full development-time profile. Significant kernel slowdown while the scope is active.
+
+Need more than one engine's data for the same workload? Run several isolated passes and merge them — see [Capturing traces](getting-started/capturing-traces).
 
 ### ISA Disassembly
 - **NVIDIA**: SASS disassembly via `nvdisasm`

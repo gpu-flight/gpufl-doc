@@ -381,6 +381,12 @@ Key properties:
 - **Archiver runs after consumption.** A consumed log file is
   enqueued to the archiver only after the publisher has
   acknowledged its lines, so you never archive partial data.
+- **Session-complete signaling.** Once every channel of a session
+  has fully drained, the agent POSTs the backend's
+  `session-complete` endpoint so the upload finalizes immediately
+  instead of waiting out the grace window. If that endpoint isn't
+  available (older backend), the grace-based finalize still
+  applies — the signal is a fast-path, not a requirement.
 
 ## Operational notes
 
