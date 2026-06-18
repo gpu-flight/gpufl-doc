@@ -54,28 +54,19 @@ by that hint.
 ## Visualization (Timeline)
 
 The `viz` module creates interactive `matplotlib` plots correlating
-kernel execution with system metrics.
-
-:::warning Broken in v0.1.x — fixed in v1.0
-`gpufl.viz` in releases `0.1.0` through `0.1.4` silently drops every
-batch record from the NDJSON log (it was written against an older
-per-event wire format and never updated for the columnar batches the
-client emits today). The result is a nearly empty plot — typically
-just one or two snapshot points at session start/stop.
-
-A full rewrite of the data-ingestion layer lands in **v1.0.0**.
-Until then, use the [analyzer](#analyzer-cli-dashboard) for
-visualization-grade insight and skip `viz`.
-:::
+kernel execution with system metrics. It decodes the columnar batch
+wire format the client emits today, so it works on current logs.
+Install the `viz` extra (`pip install "gpufl[viz]"`) for `pandas` +
+`matplotlib`.
 
 ```python
-import gpufl.viz as viz   # v1.0.0+ only
+import gpufl.viz as viz
 
 viz.init("./logs/*.log")
 viz.show()
 ```
 
-### Key Visualization Features (v1.0.0+)
+### Key Visualization Features
 - **GPU/Host utilization**: Correlate code execution with hardware load
 - **Kernel occupancy**: See how well your kernels utilize the GPU
 - **Interactive tooltips**: Hover over kernels to see their full name and metadata
