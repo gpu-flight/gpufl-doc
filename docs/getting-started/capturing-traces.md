@@ -124,6 +124,14 @@ export GPUFL_BACKEND_URL=https://api.gpuflight.com
 export GPUFL_API_KEY=gpfl_xxxxx
 ```
 
+Under the hood `--upload` runs `gpufl-agent` alongside your program and
+streams the trace live, so the session appears on the dashboard while it
+is still running. The launcher must be able to find the agent — a
+`gpufl-agent` binary on `PATH`, or `--agent-jar` / `GPUFL_AGENT_JAR`
+pointing at the fat JAR (with `java` on `PATH`). To tail a trace with an
+agent you already run — a daemon or a shared box — see
+[Live upload with `gpufl-agent`](sending-data#path-2-live-upload-with-gpufl-agent).
+
 You can also upload later:
 
 ```bash

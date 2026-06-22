@@ -1,8 +1,26 @@
 import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import type {Config, Plugin} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+
+function disableWebpackProgressPlugin(): Plugin {
+  return {
+    name: 'disable-webpack-progress-plugin',
+    configureWebpack(config) {
+      config.plugins = config.plugins?.filter((plugin) => {
+        const pluginName =
+          plugin && typeof plugin === 'object'
+            ? plugin.constructor.name
+            : undefined;
+
+        return pluginName !== 'WebpackBarPlugin';
+      });
+
+      return {};
+    },
+  };
+}
 
 const config: Config = {
   title: 'GPUFlight - GPU Profiler & Monitoring System',
@@ -34,6 +52,8 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  plugins: [disableWebpackProgressPlugin],
 
   presets: [
     [

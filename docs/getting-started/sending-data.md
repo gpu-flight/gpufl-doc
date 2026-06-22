@@ -249,47 +249,102 @@ what happened.
 
 ## Path 2: Live upload with `gpufl-agent`
 
-For a local or SSH workflow where you want always-on GPU/host telemetry
-and live dashboard updates, the native launcher can start both the
-monitor and the agent:
+The agent is the live uploader: it tails the NDJSON files as they are
+written, tracks offsets with a cursor file, handles rotation and restart
+recovery, and streams compressed batches to the backend so the session
+shows up on the dashboard **while the run is still going**.
+
+There are two ways to put the agent behind a run:
+
+- **Launcher-managed** (`--upload`) — `gpufl trace` or `gpufl monitor`
+  start the agent for you and stop it when the run exits. Best for a
+  one-off run on your own machine.
+- **Standalone** — you run `gpufl-agent` yourself as a long-lived service
+  watching a folder, and any `gpufl trace` that writes into that folder
+  is picked up automatically. Best for shared boxes and fleets.
+
+### Launcher-managed agent (`--upload`)
+
+Add `--upload` and the launcher starts `gpufl-agent` as a managed child
+process pointed at the run's output directory, then tears it down when
+the run exits:
 
 ```bash
 export GPUFL_BACKEND_URL=https://api.gpuflight.com
 export GPUFL_API_KEY=gpfl_xxxxx
 
+# Kernel-level profiling of a command, uploaded live:
+gpufl trace --name=resnet50 --upload -- python train.py
+
+# Or GPU/host telemetry only:
 gpufl monitor --name=inference-node --interval=1000 --upload
 ```
 
-`gpufl monitor` writes telemetry-only logs: GPU utilization, memory,
-temperature, power, clocks, CPU, and RAM. It does not attach CUPTI to
-another running process and it does not replace `gpufl trace` for
-kernel-level profiling.
+`gpufl monitor` writes telemetry-only logs (GPU utilization, memory,
+temperature, power, clocks, CPU, RAM); it does not attach CUPTI to
+another running process and does not replace `gpufl trace` for
+kernel-level profiling. Either command uploads with `GPUFL_BACKEND_URL` /
+`GPUFL_API_KEY` (or the `--backend-url` / `--api-key` flags).
 
-With `--upload`, the monitor starts `gpufl-agent` as a managed child
-process. The agent remains the live uploader: it tails the NDJSON files,
-tracks offsets with a cursor file, handles rotation/restart recovery,
-and sends compressed stream batches to the backend.
-
-If the agent is not on `PATH`, point the monitor at the fat JAR:
+`--upload` needs to locate the agent. The launcher resolves it in order:
+`--agent-jar` → `GPUFL_AGENT_JAR` → a `gpufl-agent` binary on `PATH`; if
+none is found it stops with `gpufl-agent not found…`. With just the agent
+JAR installed (no `gpufl-agent` on `PATH`), pass `--agent-jar` — and make
+sure `java` is on `PATH`:
 
 ```bash
-gpufl monitor --upload \
-  --agent-jar=/opt/gpufl-agent/gpufl-agent.jar
+gpufl trace --upload \
+  --agent-jar=/opt/gpufl-agent/gpufl-agent.jar \
+  -- python train.py
 ```
 
-### Production agent daemon
+To avoid repeating the flag, set it once with `GPUFL_AGENT_JAR`:
+
+```bash
+export GPUFL_AGENT_JAR=/opt/gpufl-agent/gpufl-agent.jar
+gpufl trace --upload -- python train.py
+```
+
+### Standalone agent watching a folder
+
+When you already run an agent — a daemon on a shared box, or one agent
+shipping many runs — start it **once** watching a folder, then run
+`gpufl trace --output=<that folder>` so it writes there. The agent
+rescans every couple of seconds, discovers each new `<session_id>/`
+subdirectory, and ships it live. No `--upload`, and order does not
+matter (start the agent first or the trace first):
+
+```bash
+# 1. Start the agent once, watching /var/log/gpuflight (see the agent
+#    guide for the Docker / systemd / Windows-service forms):
+java -jar gpufl-agent.jar \
+  --folders=/var/log/gpuflight \
+  --type=http \
+  --host=https://api.gpuflight.com \
+  --token=gpfl_xxxxx
+
+# 2. Run any trace into that same folder (no --upload):
+gpufl trace --name=resnet50 --output=/var/log/gpuflight -- python train.py
+```
+
+The trace writes `/var/log/gpuflight/<session_id>/{device,scope,system}.log`;
+the agent finds the new subdirectory on its next scan and tails every
+channel. Several traces can share one watched folder — each session is
+tailed independently — and the in-process upload (Path 1) shares the same
+cursor convention, so they never duplicate data on the same directory.
+
+:::note Env-var names differ by side
+The **launcher** (`--upload`) reads `GPUFL_BACKEND_URL` / `GPUFL_API_KEY`.
+The **standalone agent** reads `GPUFL_HTTP_HOST` / `GPUFL_HTTP_TOKEN` and
+`GPUFL_SOURCE_FOLDERS` (the equivalents of `--host` / `--token` /
+`--folders`).
+:::
 
 For production fleets where many GPU nodes write logs continuously,
 deploying the standalone `gpufl-agent` JVM service is the recommended
-path. It tails NDJSON files on disk, gzips compressed batches
-(10-15x smaller than per-event uploads), and uploads on a fixed cadence
-regardless of when your workloads start/stop.
-
-This standalone path is documented under
-[Docker & Kubernetes](../deployment/docker-kubernetes). The
-in-process upload (Path 1) and the agent (Path 2) share the same
-cursor-file convention, so they can run concurrently on the same log
-directory without sending duplicate data.
+path — see the [`gpufl-agent` guide](../guides/gpufl-agent) for full
+configuration and [Docker & Kubernetes](../deployment/docker-kubernetes)
+for fleet deployment.
 
 ## Path 3: Browser upload from the dashboard
 
