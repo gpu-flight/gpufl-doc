@@ -28,71 +28,60 @@ The main upload entry points are:
 The native upload paths can coexist on the same NDJSON files: they
 cooperate via the cursor file in the log directory.
 
-:::note Deprecated `remote_upload=True`
-The old live HTTP path was removed in v1.1. `remote_upload=True` remains
-as a compatibility shim for one release, but new code should use deferred
-upload APIs or an agent-based upload path. See
-[Remote upload migration](../guides/remote-upload-migration) for exact
-replacement snippets.
+:::warning Removed `remote_upload=True`
+`remote_upload=True` and backend credentials on `gpufl.init()` were removed
+in v1.2. New code should initialize profiling with `gpufl.init(...)`, call
+`gpufl.shutdown()`, then upload with `gpufl.upload_logs(...)` or use an
+agent-based upload path.
 :::
 
 ## Path 1: In-process deferred upload
 
 After your GPU workload finishes and `gpufl::shutdown()` has returned,
 call `gpufl::uploadLogs(opts)` (C++) or `gpufl.upload_logs(...)`
-(Python) — or just use the orchestrated `gpufl.session()` context
-manager that does it for you.
+(Python). Backend credentials belong to the upload step, not to
+`gpufl.init()`.
 
 The upload is **never** active during your workload. All network I/O
 happens after shutdown, so transient cert errors, TLS failures, and
 backend timeouts cannot affect the host process exit code or perceived
 performance.
 
-### Python — recommended (`gpufl.session()`)
+### Python — explicit deferred upload
 
 ```python
 import gpufl
 
-with gpufl.session(
+ok = gpufl.init(
     app_name="train",
     log_path="/tmp/runs/train",
-    backend_url="https://api.gpuflight.com",
-    api_key="gpfl_xxxxx",
     continuous_system_sampling=True,
     system_sample_rate_ms=100,
-):
+)
+try:
     # ... training, inference, whatever ...
     pass
-# On __exit__: gpufl.shutdown() then gpufl.upload_logs() — automatically.
+finally:
+    gpufl.shutdown()
+
+if ok:
+    result = gpufl.upload_logs(
+        log_path="/tmp/runs/train",
+        backend_url="https://api.gpuflight.com",
+        api_key="gpfl_xxxxx",
+    )
+    print(f"Uploaded {result.events_uploaded} events "
+          f"({result.bytes_uploaded / 1024 / 1024:.1f} MB) "
+          f"in {result.elapsed_ms / 1000:.1f}s")
+    if not result.success:
+        for warning in result.warnings:
+            print(f"  WARN: {warning}")
 ```
 
-If you omit `backend_url` or `api_key`, the session stays fully offline
-— `shutdown()` runs but no upload is attempted. The NDJSON files
-remain on disk for later inspection or upload via the CLI.
-
-### Python — explicit form
-
-For finer control (e.g. you want to inspect the result):
-
-```python
-import gpufl
-
-gpufl.init(app_name="train", log_path="/tmp/runs/train", ...)
-# ... training ...
-gpufl.shutdown()
-
-result = gpufl.upload_logs(
-    log_path="/tmp/runs/train",
-    backend_url="https://api.gpuflight.com",
-    api_key="gpfl_xxxxx",
-)
-print(f"Uploaded {result.events_uploaded} events "
-      f"({result.bytes_uploaded / 1024 / 1024:.1f} MB) "
-      f"in {result.elapsed_ms / 1000:.1f}s")
-if not result.success:
-    for w in result.warnings:
-        print(f"  WARN: {w}")
-```
+You can omit `backend_url` and `api_key` from `upload_logs()` when
+`GPUFL_BACKEND_URL` and `GPUFL_API_KEY` are set in the environment.
+If you skip the upload call entirely, the local NDJSON files remain on
+disk for later upload via the CLI, browser, or agent.
 
 ### C++
 
@@ -100,12 +89,13 @@ if not result.success:
 #include "gpufl/gpufl.hpp"
 #include "gpufl/upload/upload_logs.hpp"
 
+#include <cstdlib>
+#include <iostream>
+
 int main() {
     gpufl::InitOptions iopts;
-    iopts.app_name    = "train";
-    iopts.log_path    = "/tmp/runs/train";
-    iopts.backend_url = "https://api.gpuflight.com";
-    iopts.api_key     = "gpfl_xxxxx";
+    iopts.app_name = "train";
+    iopts.log_path = "/tmp/runs/train";
     gpufl::init(iopts);
 
     // ... GPU work ...
@@ -114,10 +104,13 @@ int main() {
 
     // Upload happens here, post-shutdown. Returns synchronously.
     gpufl::UploadOptions uopts;
-    uopts.log_path     = iopts.log_path;
-    uopts.backend_url  = iopts.backend_url;
-    uopts.api_key      = iopts.api_key;
-    const auto result  = gpufl::uploadLogs(uopts);
+    uopts.log_path = iopts.log_path;
+    uopts.backend_url = "https://api.gpuflight.com";
+    if (const char* key = std::getenv("GPUFL_API_KEY")) {
+        uopts.api_key = key;
+    }
+
+    const auto result = gpufl::uploadLogs(uopts);
     if (!result.success) {
         for (const auto& w : result.warnings) {
             std::cerr << "[upload] " << w << "\n";
@@ -126,6 +119,11 @@ int main() {
     return 0;
 }
 ```
+
+Set `GPUFL_API_KEY` before running this example, or populate
+`uopts.api_key` from your own secret store. The C++ uploader uses the
+`UploadOptions` values you pass it; the Python wrapper and CLI add the
+`GPUFL_BACKEND_URL` / `GPUFL_API_KEY` environment-variable fallback.
 
 ### CLI — `gpufl upload`
 

@@ -1,0 +1,8 @@
+{
+  "label": "Launch-Time Profiling",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Launch-time profiling tutorials for applications you can run through the GPUFlight trace launcher."
+  }
+}
