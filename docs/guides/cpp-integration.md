@@ -2,6 +2,15 @@
 
 This guide covers how to use GPUFlight in your CUDA or HIP C++ application.
 
+:::tip Build setup first
+This guide covers the API. For wiring `gpufl` into your build, see
+[Installation → CMake Integration](../getting-started/installation#cmake-integration).
+On **Windows** you must also call `gpufl_copy_runtime_dlls(<your_target>)` for
+every executable that links `gpufl` — without it the binary silently fails to
+start (exit `0xC0000135`, `DLL_NOT_FOUND`: no output, no logs). See the
+warning in the installation guide.
+:::
+
 ## Basic Usage
 
 ```cpp

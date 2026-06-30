@@ -38,7 +38,25 @@ FetchContent_MakeAvailable(gpufl)
 
 ```cmake
 target_link_libraries(my_app PRIVATE gpufl::gpufl CUDA::cudart)
+
+# Windows: stage the CUPTI / NVPERF runtime DLLs next to the executable.
+# Provided by gpufl; a no-op on Linux. Required — see the warning below.
+gpufl_copy_runtime_dlls(my_app)
 ```
+
+:::warning Windows: you must stage the CUPTI runtime DLLs
+`gpufl` links the CUDA Toolkit's CUPTI (plus NVPERF / `pcsamplingutil` for
+PC sampling). On Windows those DLLs ship with the toolkit but are **not on the
+system `PATH`**, so an executable that links `gpufl` **silently fails to
+start**: it exits immediately with code `0xC0000135`
+(`STATUS_DLL_NOT_FOUND`) — printing nothing and writing no logs.
+
+Call `gpufl_copy_runtime_dlls(<target>)` (provided by `gpufl`) for **every**
+executable that links `gpufl`. As a post-build step it copies the matching
+`cupti64_*.dll`, `nvperf_host*.dll`, `nvperf_target*.dll`, and
+`pcsamplingutil*.dll` next to your binary. The function is a no-op on
+non-Windows platforms, so it is safe to call unconditionally.
+:::
 
 **For AMD/HIP targets:**
 
