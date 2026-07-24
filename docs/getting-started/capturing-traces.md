@@ -32,6 +32,55 @@ on Linux/macOS or `%USERPROFILE%\.gpufl\traces\` on Windows. The
 directory contains one subfolder per session id, with `device.log`,
 `scope.log`, and `system.log` files.
 
+## Capture a bounded profiling window
+
+Long-running services such as inference servers do not exit after one request.
+Use `--window` to capture a representative slice instead of recording the
+service indefinitely:
+
+```bash
+gpufl trace --window=5s -- ./inference_server
+```
+
+On Windows:
+
+```powershell
+gpufl.exe trace --window=5s -- .\inference_server.exe
+```
+
+The target starts immediately, GPUFlight records five seconds, and the launcher
+then asks the target to stop so the trace can be flushed and closed. A bounded
+window keeps the trace focused and limits its size and profiling overhead. This
+is the mode used by Performance Labs that profile the first five seconds of a
+server workload.
+
+If cold start, JIT compilation, autotuning, or allocator setup would distort
+the trace, add a warmup:
+
+```bash
+gpufl trace --warmup=30s --window=5s -- ./inference_server
+```
+
+Here the process runs for 30 seconds before capture begins, then GPUFlight
+records the next five seconds. The launcher stops the target after approximately
+35 seconds in total.
+
+The bounded-window options are:
+
+- `--warmup=<DUR>` defers capture while the target warms up.
+- `--window=<DUR>` sets the capture duration. Without it, the target runs until
+  it exits on its own.
+- `--window-timeout=<DUR>` places a hard cap on total target runtime. A timeout
+  shorter than `warmup + window` ends the run early.
+- `--after-window=stop` stops the target after the window. `stop` is currently
+  the only supported behavior and is the default.
+
+Durations accept `ms`, `s`, `m`, or `h`, such as `500ms`, `5s`, `2m`, and
+`1h`. A value without a unit is interpreted as seconds.
+
+When `--passes` contains multiple comma-separated passes, GPUFlight relaunches
+the command and applies the warmup and capture window to each pass.
+
 ## Name and output directory
 
 ```bash
