@@ -84,9 +84,12 @@ const config: Config = {
       title: 'GPUFlight',
       logo: {
         alt: 'GPUFlight',
-        // Single logo for both modes — the green badge reads fine on
-        // light AND dark backgrounds, so no `srcDark` variant needed.
+        // The mark is a single-colour silhouette, so it needs one file per
+        // mode: ink on the light navbar, near-white on the dark one. Keyed
+        // off Docusaurus's theme toggle (not prefers-color-scheme), which is
+        // what actually drives the navbar colour here.
         src: 'img/logo.svg',
+        srcDark: 'img/logo-dark.svg',
       },
       items: [
         {
